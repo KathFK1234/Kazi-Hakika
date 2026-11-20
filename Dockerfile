@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # 1) Build the React frontend into app/static.
-FROM node:26-trixie-slim AS web
+FROM node:26-trixie-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -9,7 +9,7 @@ COPY web/ ./
 RUN npm run build
 
 # 2) Python runtime: one image for the web service and the daily cron job.
-FROM python:3.14-slim-trixie
+FROM python:3.14-slim-trixie@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \

@@ -34,12 +34,18 @@ One FastAPI service serves the API and the built React frontend, alongside one P
 
 ## Run it locally
 
-Needs Python 3.12+, Node 22 and PostgreSQL 16+.
+Needs Python 3.12+, Node 22 and Docker (or any PostgreSQL 16+).
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env            # then edit DATABASE_URL and SECRET_KEY
+cp .env.example .env
+
+docker compose up -d db
+# Create the tables and the kazi_app role as the database owner...
+MIGRATIONS_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/kazi_hakika alembic upgrade head
+# ...then let the app log in as kazi_app, a non-superuser, so row-level security applies.
+docker compose exec db psql -U postgres -c "ALTER ROLE kazi_app LOGIN PASSWORD 'kazi_app'"
 
 (cd web && npm ci && npm run build)   # builds the frontend into app/static
 uvicorn app.main:app --reload
@@ -47,10 +53,15 @@ uvicorn app.main:app --reload
 
 Open http://localhost:8000. For frontend work, run `npm run dev` in `web/` (it proxies `/api` to port 8000).
 
+### Privacy model
+
+Each user's rows are protected twice: every query filters by the signed-in user, and Postgres row-level security (`FORCE`d, so it applies to the table owner too) only shows rows whose `user_id` matches `app.user_id`. That setting is made transaction-local at the start of every transaction, so a pooled connection never carries one user's identity into another request. The app connects as `kazi_app`, which is not a superuser, cannot bypass RLS and owns no tables.
+
 ## Checks
 
 ```bash
-ruff check . && ruff format --check . && mypy app tests && pytest -q
+ruff check . && ruff format --check . && mypy app tests
+TEST_ADMIN_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres pytest -q
 (cd web && npm run lint && npm run typecheck && npm test)
 ```
 

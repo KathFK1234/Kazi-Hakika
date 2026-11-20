@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +20,10 @@ class Settings(BaseSettings):
 
     # The app connects as a non-superuser role so RLS always applies.
     database_url: str = "postgresql+psycopg://kazi_app:kazi_app@localhost:5432/kazi_hakika"
+    # Migrations run as the table owner (not the app role). Falls back to DATABASE_URL.
+    migrations_database_url: str | None = None
+    db_pool_size: int = Field(default=5, ge=1, le=20)
+    db_statement_timeout_ms: int = Field(default=5000, ge=100)
 
     # Signs nothing on its own today; kept for future token signing. Must be set in production.
     secret_key: SecretStr = SecretStr("dev-only-not-secret")
@@ -34,6 +38,17 @@ class Settings(BaseSettings):
 
     # Sessions.
     session_days: int = Field(default=14, ge=1, le=90)
+
+    @field_validator("database_url", "migrations_database_url")
+    @classmethod
+    def _use_psycopg_driver(cls, value: str | None) -> str | None:
+        """Railway hands out postgresql:// URLs; SQLAlchemy needs the driver named."""
+        if value is None:
+            return None
+        for prefix in ("postgres://", "postgresql://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value.removeprefix(prefix)
+        return value
 
     @property
     def is_production(self) -> bool:

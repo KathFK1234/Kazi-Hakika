@@ -8,6 +8,10 @@ updates:
       day: monday
       timezone: Africa/Nairobi
     open-pull-requests-limit: 3
+    ignore:
+      # Major upgrades are deliberate: done by hand, tested, never auto-proposed.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       python:
         patterns: ["*"]
@@ -19,6 +23,10 @@ updates:
       day: monday
       timezone: Africa/Nairobi
     open-pull-requests-limit: 3
+    ignore:
+      # Major upgrades are deliberate: done by hand, tested, never auto-proposed.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       web:
         patterns: ["*"]
@@ -35,3 +43,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      # Python 3.12 and Node 22 are chosen on purpose; move them by hand.
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

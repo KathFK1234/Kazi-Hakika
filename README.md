@@ -55,7 +55,11 @@ Open http://localhost:8000. For frontend work, run `npm run dev` in `web/` (it p
 
 ### Privacy model
 
-Each user's rows are protected twice: every query filters by the signed-in user, and Postgres row-level security (`FORCE`d, so it applies to the table owner too) only shows rows whose `user_id` matches `app.user_id`. That setting is made transaction-local at the start of every transaction, so a pooled connection never carries one user's identity into another request. The app connects as `kazi_app`, which is not a superuser, cannot bypass RLS and owns no tables.
+Each user's rows are protected twice: every query filters by the signed-in user, and Postgres row-level security (`FORCE`d, so it applies to the table owner too) only shows rows whose `user_id` matches `app.user_id`. That setting is made transaction-local at the start of every transaction, so a pooled connection never carries one user's identity into another request. The app connects as `kazi_app`, which is not a superuser, cannot bypass RLS and owns no tables. For that role, stage history is append-only: it can add events but not change or delete them (deleting an application or account still removes them by cascade).
+
+RLS covers the tracker tables (`applications`, `stage_events`). The account tables (`users`, `sessions`, `auth_tokens`) have to be read before anyone is signed in (to log in, or to check a session or reset link), so they're guarded by the code alone: only the auth and account endpoints touch them, always by the signed-in user's ID or by a hashed token.
+
+Logs never hold request bodies, email addresses or database values: database errors are logged by SQLSTATE and constraint name only. The plain-language notice for users is at `/privacy`.
 
 ### Accounts and sessions
 
@@ -70,7 +74,7 @@ Each user's rows are protected twice: every query filters by the signed-in user,
 
 `python -m app.jobs.daily` runs once a day as a Railway cron service (`0 3 * * *`, which is 06:00 in Nairobi). It sends each opted-in user with a confirmed email one digest of deadlines in the next 3 days, oldest sign-ups first if the email budget runs short. Then it clears expired sessions and tokens, logs counts and exits. A user is marked before their email goes out, so a re-run never sends a second digest the same day. A failed send is unmarked and tried again next run. There is no scheduler or loop inside the web service.
 
-Signed-in users can see what their next digest would hold at `/api/account/digest-preview`.
+The same job deletes accounts whose email was never confirmed and which never tracked a role, 30 days after sign-up. Signed-in users can see what their next digest would hold under Settings (`/api/account/digest-preview`), and the export in Settings includes their account, applications, stage history and active sign-ins.
 
 ## Checks
 

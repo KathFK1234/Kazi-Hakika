@@ -84,6 +84,10 @@ TEST_ADMIN_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres p
 (cd web && npm run lint && npm run typecheck && npm test)
 ```
 
+## Dependencies
+
+Dependabot raises security fixes as soon as an advisory lands, plus weekly update PRs: minor and patch updates are grouped, and each major update comes as its own PR. Nothing is ignored. Every update gets applied, along with whatever code it breaks, and goes through all the checks above before it ships. If an update can't be done yet, the reason goes on its PR. `requirements.txt` pins the exact versions the image installs, and CI runs `pip-audit` on it.
+
 ## Deploy (Railway)
 
 Two services and one database, all built from the same `Dockerfile`:

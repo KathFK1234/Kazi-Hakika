@@ -1,4 +1,6 @@
-# Weekly, grouped update PRs. Security updates are raised as soon as advisories land.
+# Weekly, grouped update PRs; security updates are raised as soon as advisories land.
+# Nothing is ignored: every update Dependabot raises, majors included, gets
+# upgraded, fixed where it breaks and tested (see README "Dependencies").
 version: 2
 updates:
   - package-ecosystem: pip
@@ -7,14 +9,10 @@ updates:
       interval: weekly
       day: monday
       timezone: Africa/Nairobi
-    open-pull-requests-limit: 3
-    ignore:
-      # Major upgrades are deliberate: done by hand, tested, never auto-proposed.
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 5
     groups:
-      python:
-        patterns: ["*"]
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: npm
     directory: /web
@@ -22,14 +20,10 @@ updates:
       interval: weekly
       day: monday
       timezone: Africa/Nairobi
-    open-pull-requests-limit: 3
-    ignore:
-      # Major upgrades are deliberate: done by hand, tested, never auto-proposed.
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 5
     groups:
-      web:
-        patterns: ["*"]
+      web-minor-and-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -43,9 +37,3 @@ updates:
     directory: /
     schedule:
       interval: monthly
-    ignore:
-      # Python 3.12 and Node 22 are chosen on purpose; move them by hand.
-      - dependency-name: "python"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "node"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]

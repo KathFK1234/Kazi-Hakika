@@ -54,6 +54,19 @@ def test_stage_change_writes_event_and_sets_applied_on(me: TestClient) -> None:
     assert len(body["events"]) == 2
 
 
+def test_explicit_applied_on_wins_over_autofill(me: TestClient) -> None:
+    app = _add(me)
+    body = me.patch(
+        f"/api/applications/{app['id']}", json={"stage": "applied", "applied_on": None}
+    ).json()
+    assert body["applied_on"] is None
+    other = _add(me)
+    body = me.patch(
+        f"/api/applications/{other['id']}", json={"stage": "applied", "applied_on": "2026-01-05"}
+    ).json()
+    assert body["applied_on"] == "2026-01-05"
+
+
 def test_patch_clears_optional_fields_but_not_required(me: TestClient) -> None:
     app = _add(me, deadline="2030-01-01", salary_note="KSh 200k")
     r = me.patch(f"/api/applications/{app['id']}", json={"deadline": None, "salary_note": None})

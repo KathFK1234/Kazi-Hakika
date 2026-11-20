@@ -132,7 +132,14 @@ def _today() -> date:
     return today_eat()
 
 
-def _record_stage(db: UserDb, app: Application, user_id: uuid.UUID, from_stage: str | None) -> None:
+def _record_stage(
+    db: UserDb,
+    app: Application,
+    user_id: uuid.UUID,
+    from_stage: str | None,
+    *,
+    fill_applied_on: bool = True,
+) -> None:
     db.add(
         StageEvent(
             application_id=app.id,
@@ -142,7 +149,7 @@ def _record_stage(db: UserDb, app: Application, user_id: uuid.UUID, from_stage: 
             at=datetime.now(UTC),
         )
     )
-    if app.stage == "applied" and app.applied_on is None:
+    if fill_applied_on and app.stage == "applied" and app.applied_on is None:
         app.applied_on = _today()
 
 
@@ -230,7 +237,8 @@ def update_application(
     for field, value in changes.items():
         setattr(app, field, value)
     if app.stage != old_stage:
-        _record_stage(db, app, auth.user_id, old_stage)
+        # Respect an applied_on the user set (or cleared) in this same request.
+        _record_stage(db, app, auth.user_id, old_stage, fill_applied_on="applied_on" not in changes)
     db.commit()
     return _detail(db, auth.user_id, app_id)
 

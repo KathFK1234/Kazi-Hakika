@@ -131,7 +131,9 @@ def run(sessions: sessionmaker[Session], mailer: Mailer, settings: Settings) -> 
 def main() -> int:
     settings = get_settings()
     logging.basicConfig(
-        level=settings.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s %(message)s"
+        level=settings.log_level.upper(),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        stream=sys.stdout,  # Railway shows stderr lines as errors
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
     engine = make_engine(settings)

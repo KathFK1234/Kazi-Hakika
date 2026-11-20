@@ -2,6 +2,7 @@
 
 import html
 import logging
+import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -24,9 +25,11 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 
 def configure_logging(settings: Settings) -> None:
+    # stdout: Railway shows stderr lines as errors.
     logging.basicConfig(
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        stream=sys.stdout,
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
     # Access logs carry query strings (reset tokens); keep them out of production logs.

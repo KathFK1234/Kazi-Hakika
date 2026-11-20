@@ -1,14 +1,18 @@
 """Row-level security holds even for raw SQL, independent of the API's own filters."""
 
+import logging
 import uuid
 from datetime import UTC, datetime
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.config import Settings
 from app.db import set_session_user
+from app.main import create_app
 from app.models import Application, StageEvent
 from tests.factories import make_application, make_user
 
@@ -123,10 +127,25 @@ def test_setting_user_mid_transaction_is_refused(app_sessions: sessionmaker[Sess
             set_session_user(s, uuid.uuid4())
 
 
-def test_database_errors_do_not_echo_user_data(app_sessions: sessionmaker[Session]) -> None:
-    with app_sessions() as s, pytest.raises(DBAPIError) as caught:
-        s.execute(
-            text("INSERT INTO users (email, password_hash, handle) VALUES (:e, 'x', 'NOT VALID')"),
-            {"e": "private.person@example.com"},
-        )
-    assert "private.person@example.com" not in str(caught.value)
+def test_database_errors_are_logged_without_user_data(
+    settings: Settings, app_sessions: sessionmaker[Session], caplog: pytest.LogCaptureFixture
+) -> None:
+    app = create_app(settings)
+    app.state.sessionmaker = app_sessions
+
+    def boom() -> None:
+        with app_sessions() as s:
+            s.execute(
+                text("INSERT INTO users (email, password_hash, handle) VALUES (:e, 'x', 'NO')"),
+                {"e": "private.person@example.com"},
+            )
+
+    app.add_api_route("/api/boom", boom)
+    app.router.routes.insert(0, app.router.routes.pop())  # ahead of the SPA catch-all
+    with caplog.at_level(logging.DEBUG):
+        r = TestClient(app, raise_server_exceptions=False).get("/api/boom")
+    assert r.status_code == 500
+    assert "private.person@example.com" not in r.text
+    assert "private.person@example.com" not in caplog.text
+    assert "sqlstate=23514" in caplog.text
+    assert "ck_users_handle_format" in caplog.text

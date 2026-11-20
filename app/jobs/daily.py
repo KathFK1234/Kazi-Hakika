@@ -14,10 +14,12 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
 from sqlalchemy import delete, or_, select, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
 from app.db import make_engine, set_session_user
+from app.errors import describe_db_error
 from app.models import AuthToken, User, UserSession
 from app.services.digest import digest_message, today_eat, upcoming
 from app.services.email import Mailer, resend_transport
@@ -136,6 +138,10 @@ def main() -> int:
     try:
         sessions = sessionmaker(bind=engine, expire_on_commit=False)
         run(sessions, Mailer(sessions, settings, resend_transport(settings)), settings)
+    except DBAPIError as exc:
+        # Never the message: Postgres puts row values in it.
+        log.error("daily job failed: %s", describe_db_error(exc))
+        return 1
     except Exception:
         log.exception("daily job failed")
         return 1

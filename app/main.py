@@ -8,8 +8,10 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import DBAPIError
 
 from app.config import Settings, get_settings
+from app.errors import database_error_handler
 from app.middleware import (
     BodySizeLimitMiddleware,
     SameOriginMiddleware,
@@ -46,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.limiter = RateLimiter()
+    app.add_exception_handler(DBAPIError, database_error_handler)
 
     app.include_router(health.router)
     app.include_router(meta.router)

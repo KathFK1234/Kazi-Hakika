@@ -15,7 +15,7 @@ from app.middleware import (
     SameOriginMiddleware,
     SecurityHeadersMiddleware,
 )
-from app.routers import auth, health, meta
+from app.routers import applications, auth, health, meta
 from app.services.ratelimit import RateLimiter
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -50,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(meta.router)
     app.include_router(auth.router)
+    app.include_router(applications.router)
 
     _mount_frontend(app, settings)
 

@@ -44,20 +44,19 @@ export function TrackerPage() {
     }
   }, [])
 
-  const moveTo = useCallback(
-    async (id: string, stage: Stage) => {
-      const before = apps
-      setApps((list) => list?.map((a) => (a.id === id ? { ...a, stage } : a)) ?? null)
-      try {
-        const updated = await api.updateApplication(id, { stage })
-        setApps((list) => list?.map((a) => (a.id === id ? updated : a)) ?? null)
-      } catch (e) {
-        setApps(before)
-        setError(errorMessage(e))
-      }
-    },
-    [apps],
-  )
+  const moveTo = useCallback(async (id: string, stage: Stage, from: Stage) => {
+    const setStage = (target: Stage) =>
+      setApps((list) => list?.map((a) => (a.id === id ? { ...a, stage: target } : a)) ?? null)
+    setStage(stage)
+    try {
+      const updated = await api.updateApplication(id, { stage })
+      setApps((list) => list?.map((a) => (a.id === id ? updated : a)) ?? null)
+    } catch (e) {
+      // Put back only this card; other moves made meanwhile stay.
+      setStage(from)
+      setError(errorMessage(e))
+    }
+  }, [])
 
   function choose(next: View) {
     setView(next)
@@ -127,7 +126,13 @@ function DuePanel({ apps }: { apps: Application[] }) {
   )
 }
 
-function Board({ apps, onMove }: { apps: Application[]; onMove: (id: string, stage: Stage) => void }) {
+function Board({
+  apps,
+  onMove,
+}: {
+  apps: Application[]
+  onMove: (id: string, stage: Stage, from: Stage) => void
+}) {
   const [over, setOver] = useState<Stage | null>(null)
   const byStage = useMemo(() => {
     const groups = Object.fromEntries(STAGES.map((s) => [s, [] as Application[]])) as Record<Stage, Application[]>
@@ -140,7 +145,7 @@ function Board({ apps, onMove }: { apps: Application[]; onMove: (id: string, sta
     setOver(null)
     const id = event.dataTransfer.getData('text/plain')
     const app = apps.find((a) => a.id === id)
-    if (app && app.stage !== stage) onMove(id, stage)
+    if (app && app.stage !== stage) onMove(id, stage, app.stage)
   }
 
   return (
@@ -178,7 +183,7 @@ function Board({ apps, onMove }: { apps: Application[]; onMove: (id: string, sta
                 {a.deadline && <span className="due">{dueLabel(a.deadline)}</span>}
                 <label className="move">
                   <span className="visually-hidden">Move {a.role_title} to</span>
-                  <select value={a.stage} onChange={(e) => onMove(a.id, e.target.value as Stage)}>
+                  <select value={a.stage} onChange={(e) => onMove(a.id, e.target.value as Stage, a.stage)}>
                     {STAGES.map((s) => (
                       <option key={s} value={s}>
                         {STAGE_LABELS[s]}

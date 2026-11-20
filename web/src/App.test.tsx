@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
+import { vi } from 'vitest'
 import { AppRoutes } from './App'
 import { AuthProvider } from './auth'
 import { todayIso } from './dates'
@@ -116,6 +117,40 @@ describe('tracker', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Server trouble')
     const saved = screen.getByRole('region', { name: /Saved/ })
     expect(within(saved).getByText('Data Analyst')).toBeInTheDocument()
+  })
+
+  it('a failed move does not undo another card that moved meanwhile', async () => {
+    let failFirst: (r: Response) => void = () => {}
+    mockApi({
+      'GET /api/meta': META,
+      'GET /api/auth/me': ME,
+      'GET /api/applications': page([
+        app({ id: 'a1', role_title: 'Data Analyst' }),
+        app({ id: 'a2', role_title: 'SRE' }),
+      ]),
+      'PATCH /api/applications/a2': (init) => ({
+        body: { ...app({ id: 'a2', role_title: 'SRE' }), ...JSON.parse(String(init?.body)) },
+      }),
+    })
+    // a1's request hangs until we fail it by hand.
+    const realFetch = globalThis.fetch
+    vi.stubGlobal('fetch', (input: string, init?: RequestInit) =>
+      input.endsWith('/a1') && init?.method === 'PATCH'
+        ? new Promise<Response>((resolve) => {
+            failFirst = resolve
+          })
+        : realFetch(input, init),
+    )
+    renderAt('/')
+    await userEvent.selectOptions(await screen.findByLabelText('Move Data Analyst to'), 'offer')
+    await userEvent.selectOptions(screen.getByLabelText('Move SRE to'), 'interview')
+    await waitFor(() =>
+      expect(within(screen.getByRole('region', { name: /Interview/ })).getByText('SRE')).toBeInTheDocument(),
+    )
+    failFirst(new Response(JSON.stringify({ detail: 'Server trouble' }), { status: 500 }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server trouble')
+    expect(within(screen.getByRole('region', { name: /Saved/ })).getByText('Data Analyst')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: /Interview/ })).getByText('SRE')).toBeInTheDocument()
   })
 
   it('switches to the list view', async () => {

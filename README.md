@@ -123,6 +123,10 @@ Users' trackers live only in Postgres, so:
 
 Smoke test after each deploy: `python scripts/smoke_test.py https://<your-app>.up.railway.app`. It signs up a throwaway account, adds an application due tomorrow, checks the digest preview lists it, checks the security headers, and deletes the account again (one sign-up email from the day's budget).
 
+### Secrets
+
+Secrets come only from environment variables; `.env` is git-ignored. CI runs detect-secrets against `.secrets.baseline`, which lists the reviewed local-development placeholders (localhost database URLs, test passwords), so any new secret fails the build. After adding a deliberate placeholder, refresh the baseline with `detect-secrets scan --baseline .secrets.baseline --exclude-files '^web/package-lock\.json$'` and review it with `detect-secrets audit .secrets.baseline`.
+
 ## Cost guardrails
 
 The target is about $5 a month on Railway's Hobby plan, with hard caps so a bug can't produce a large bill:

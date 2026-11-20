@@ -24,6 +24,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "pip-audit>=2.7",
+    "httpx2>=2.16",  # what starlette.testclient wants (httpx there is deprecated)
 ]
 
 [build-system]
@@ -54,4 +55,4 @@ exclude = ["^web/", "^migrations/"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-filterwarnings = ["error::DeprecationWarning:app.*"]
+filterwarnings = ["error::DeprecationWarning"]

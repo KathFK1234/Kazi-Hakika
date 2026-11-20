@@ -196,7 +196,9 @@ def test_password_reset_flow_signs_out_everywhere(
     assert r.status_code == 200
     assert client.cookies.get("kh_session") != old_cookie
 
-    # The old session is gone.
+    # The old session is gone. Clear first: httpx2 keeps the new cookie
+    # next to one set without a domain, and would send both.
+    client.cookies.clear()
     client.cookies.set("kh_session", old_cookie or "")
     assert client.get("/api/auth/me").status_code == 401
 

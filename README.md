@@ -30,7 +30,7 @@ One FastAPI service serves the API and the built React frontend, alongside one P
 | API | Python 3.12, FastAPI, Pydantic v2 |
 | Database | PostgreSQL, SQLAlchemy 2, Alembic, row-level security |
 | Frontend | React + TypeScript (Vite), built into `app/static` |
-| Email | Resend, behind a daily send budget |
+| Email | Resend (HTTPS API, 5 s timeout), behind a daily send budget |
 
 ## Run it locally
 
@@ -70,4 +70,5 @@ TEST_ADMIN_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres p
 The target is about $5 a month on Railway's Hobby plan, with hard caps so a bug can't produce a large bill:
 
 - Request bodies capped at 64 KB.
-- More caps arrive with each feature: email budget, rate limits, pagination, outbound timeouts.
+- Email budget: at most 90 emails a UTC day (under Resend's free 100). The count and the send share one transaction, so a failed send uses no budget and the 91st is refused and logged.
+- More caps arrive with each feature: rate limits, pagination, outbound timeouts.

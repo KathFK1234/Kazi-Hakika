@@ -20,6 +20,8 @@ def make_engine(settings: Settings) -> Engine:
         max_overflow=settings.db_pool_size,
         pool_pre_ping=True,
         pool_recycle=1800,
+        # Error messages must not carry emails, notes or tokens into logs.
+        hide_parameters=True,
         connect_args={
             "options": f"-c statement_timeout={settings.db_statement_timeout_ms}",
             "connect_timeout": 5,

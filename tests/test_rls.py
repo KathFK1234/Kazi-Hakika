@@ -121,3 +121,12 @@ def test_setting_user_mid_transaction_is_refused(app_sessions: sessionmaker[Sess
         s.execute(text("SELECT 1"))
         with pytest.raises(RuntimeError):
             set_session_user(s, uuid.uuid4())
+
+
+def test_database_errors_do_not_echo_user_data(app_sessions: sessionmaker[Session]) -> None:
+    with app_sessions() as s, pytest.raises(DBAPIError) as caught:
+        s.execute(
+            text("INSERT INTO users (email, password_hash, handle) VALUES (:e, 'x', 'NOT VALID')"),
+            {"e": "private.person@example.com"},
+        )
+    assert "private.person@example.com" not in str(caught.value)

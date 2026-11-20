@@ -12,9 +12,9 @@ from sqlalchemy.orm import selectinload
 
 from app.deps import AuthDep, SettingsDep, SystemDb, UserDb, enforce
 from app.models import Application, User
-from app.routers.auth import clear_session_cookie
 from app.services.digest import today_eat, upcoming
 from app.services.ratelimit import Limit
+from app.services.sessions import clear_session_cookie
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/account", tags=["account"])

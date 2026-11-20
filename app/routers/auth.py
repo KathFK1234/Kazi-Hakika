@@ -16,7 +16,6 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import Settings
 from app.deps import (
     Auth,
     AuthDep,
@@ -43,6 +42,7 @@ from app.services.ratelimit import (
     TOKEN_USE_PER_IP,
     VERIFY_RESEND_PER_USER,
 )
+from app.services.sessions import clear_session_cookie, start_session
 from app.services.tokens import hash_token, new_token
 
 log = logging.getLogger(__name__)
@@ -156,43 +156,6 @@ def _consume_token(db: Session, token: str, purpose: str) -> User | None:
     return db.get(User, row.user_id)
 
 
-def _start_session(db: Session, response: Response, settings: Settings, user: User) -> None:
-    token = new_token()
-    db.add(
-        UserSession(
-            user_id=user.id,
-            token_hash=hash_token(token),
-            csrf_token=new_token(),
-            expires_at=datetime.now(UTC) + timedelta(days=settings.session_days),
-        )
-    )
-    # Housekeeping without a scheduler: drop this user's expired sessions.
-    db.execute(
-        delete(UserSession).where(
-            UserSession.user_id == user.id, UserSession.expires_at <= datetime.now(UTC)
-        )
-    )
-    response.set_cookie(
-        settings.session_cookie_name,
-        token,
-        max_age=settings.session_days * 86400,
-        httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
-        path="/",
-    )
-
-
-def clear_session_cookie(response: Response, settings: Settings) -> None:
-    response.delete_cookie(
-        settings.session_cookie_name,
-        path="/",
-        secure=settings.is_production,
-        httponly=True,
-        samesite="lax",
-    )
-
-
 @router.post("/signup", status_code=status.HTTP_202_ACCEPTED)
 def signup(
     body: SignupIn, request: Request, db: SystemDb, mailer: MailerDep, settings: SettingsDep
@@ -250,7 +213,7 @@ def login(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Wrong email or password.")
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
-    _start_session(db, response, settings, user)
+    start_session(db, response, settings, user)
     db.commit()
     return {"detail": "Signed in."}
 
@@ -354,6 +317,6 @@ def confirm_reset(
     user.email_verified_at = user.email_verified_at or datetime.now(UTC)
     # Sign out everywhere, then sign in here.
     db.execute(delete(UserSession).where(UserSession.user_id == user.id))
-    _start_session(db, response, settings, user)
+    start_session(db, response, settings, user)
     db.commit()
     return {"detail": "Password changed."}

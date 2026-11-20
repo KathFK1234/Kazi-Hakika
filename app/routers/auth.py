@@ -200,7 +200,9 @@ def login(
     email = body.email.strip().lower()
     ip = client_ip(request)
     email_ip = f"{email}|{ip}"
-    enforce(request, LOGIN_PER_IP, ip)
+    # Only failures count, per IP too: many people share one address on
+    # mobile data (carrier-grade NAT), cybercafés and campuses.
+    enforce_not_blocked(request, LOGIN_PER_IP, ip)
     enforce_not_blocked(request, LOGIN_FAILS_PER_EMAIL_IP, email_ip)
     enforce_not_blocked(request, LOGIN_FAILS_PER_EMAIL, email)
 
@@ -208,6 +210,7 @@ def login(
     password_ok = verify_password(user.password_hash if user else None, body.password)
     if user is None or not password_ok:
         limiter = get_limiter(request)
+        limiter.hit(LOGIN_PER_IP, ip)
         limiter.hit(LOGIN_FAILS_PER_EMAIL_IP, email_ip)
         limiter.hit(LOGIN_FAILS_PER_EMAIL, email)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Wrong email or password.")

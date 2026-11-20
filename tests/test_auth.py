@@ -133,6 +133,15 @@ def test_login_rate_limited_5_per_minute_per_ip(client: TestClient) -> None:
     assert int(r.headers["retry-after"]) >= 1
 
 
+def test_successful_logins_from_a_shared_address_do_not_use_up_the_limit(
+    client: TestClient, outbox: list[EmailMessage]
+) -> None:
+    email = signup(client, outbox, "sharedip")
+    for _ in range(8):
+        r = client.post("/api/auth/login", json={"email": email, "password": PASSWORD})
+        assert r.status_code == 200
+
+
 def test_state_change_without_csrf_is_refused(
     client: TestClient, outbox: list[EmailMessage]
 ) -> None:

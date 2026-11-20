@@ -65,6 +65,7 @@ class RateLimiter:
                 del self._hits[k]
 
 
+# Failed logins per IP (successful ones never count).
 LOGIN_PER_IP = Limit("login-ip", 5, 60)
 # Failed logins only, so typing someone's email can't lock them out quickly:
 # 10 an hour from one IP for one account, 50 an hour for one account overall.

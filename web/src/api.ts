@@ -109,7 +109,10 @@ export async function request<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!response.ok) {
-    let message = response.status === 429 ? 'Too many attempts. Please wait a minute.' : 'Something went wrong. Please try again.'
+    let message =
+      response.status === 429
+        ? 'Too many attempts. Please wait a minute.'
+        : 'Something went wrong. Please try again.'
     try {
       const data = (await response.json()) as { detail?: unknown }
       message = describe(data.detail, message)
@@ -119,7 +122,12 @@ export async function request<T>(
     throw new ApiError(response.status, message)
   }
   if (response.status === 204) return undefined as T
-  return (await response.json()) as T
+  try {
+    return (await response.json()) as T
+  } catch {
+    // e.g. a proxy's HTML page while the service is waking up
+    throw new ApiError(response.status, 'The server sent an unexpected reply. Please try again.')
+  }
 }
 
 export const getJson = <T>(path: string) => request<T>('GET', path)

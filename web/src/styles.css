@@ -84,6 +84,25 @@ h2 {
   white-space: nowrap;
 }
 
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 10;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border: 2px solid var(--focus);
+  border-radius: var(--radius);
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+main:focus {
+  outline: none;
+}
+
 .shell {
   max-width: 80rem;
   margin: 0 auto;

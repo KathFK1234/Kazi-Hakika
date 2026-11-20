@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router'
 import { api, listAll, STAGE_LABELS, STAGES, type Application, type Stage } from '../api'
@@ -26,6 +27,7 @@ function saveView(view: View) {
 }
 
 export function TrackerPage() {
+  useTitle('My applications')
   const [apps, setApps] = useState<Application[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<View>(loadView)

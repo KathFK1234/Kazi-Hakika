@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { api, STAGE_LABELS, STAGES, type ApplicationDetail, type ApplicationInput, type Stage } from '../api'
@@ -42,6 +43,7 @@ export function ApplicationPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(isNew)
+  useTitle(isNew ? 'Add a role' : 'Edit role')
   const stageId = useId()
   const notesId = useId()
 

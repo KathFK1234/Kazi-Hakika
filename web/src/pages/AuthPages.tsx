@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api'
@@ -24,6 +25,7 @@ function useSubmit<T>(action: () => Promise<T>, onDone: (result: T) => void) {
 }
 
 export function LoginPage() {
+  useTitle('Sign in')
   const { refresh } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -57,6 +59,7 @@ export function LoginPage() {
 }
 
 export function SignupPage() {
+  useTitle('Create your account')
   const [email, setEmail] = useState('')
   const [handle, setHandle] = useState('')
   const [password, setPassword] = useState('')
@@ -128,6 +131,7 @@ function clearHash() {
 }
 
 export function VerifyEmailPage() {
+  useTitle('Confirm your email')
   const { refresh } = useAuth()
   const [token] = useState(tokenFromHash)
   const [state, setState] = useState<'working' | 'done' | 'failed'>(token ? 'working' : 'failed')
@@ -174,6 +178,7 @@ export function VerifyEmailPage() {
 }
 
 export function ForgotPasswordPage() {
+  useTitle('Reset your password')
   const [email, setEmail] = useState('')
   const [done, setDone] = useState<string | null>(null)
   const { error, busy, submit } = useSubmit(
@@ -202,6 +207,7 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
+  useTitle('Choose a new password')
   const { refresh } = useAuth()
   const navigate = useNavigate()
   const [token] = useState(tokenFromHash)

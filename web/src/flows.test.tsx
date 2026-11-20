@@ -219,6 +219,23 @@ describe('account', () => {
     expect(screen.getByText(/Resend sends our emails/)).toBeInTheDocument()
   })
 
+  it('titles each page and moves focus to the new page on navigation', async () => {
+    mockApi({
+      'GET /api/meta': META,
+      'GET /api/auth/me': ME,
+      'GET /api/applications': { items: [], total: 0, next_offset: null },
+      'GET /api/account/digest-preview': { will_send: false, reasons: [], items: [] },
+    })
+    renderAt('/')
+    await screen.findByRole('heading', { name: 'My applications' })
+    expect(document.title).toBe('My applications · Kazi Hakika')
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#main')
+    await userEvent.click(screen.getByRole('link', { name: 'Settings' }))
+    await screen.findByRole('heading', { name: 'Settings' })
+    expect(document.title).toBe('Settings · Kazi Hakika')
+    expect(screen.getByRole('main')).toHaveFocus()
+  })
+
   it('shows a not-found page for unknown routes', async () => {
     mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': ME })
     renderAt('/no/such/page')

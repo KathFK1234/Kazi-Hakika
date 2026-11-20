@@ -1,6 +1,8 @@
+import { useTitle } from '../useTitle'
 import { Link } from 'react-router'
 
 export function PrivacyPage() {
+  useTitle('Your data')
   return (
     <article className="prose">
       <h1>Your data, in plain words</h1>

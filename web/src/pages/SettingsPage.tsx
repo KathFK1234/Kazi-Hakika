@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { api, type DigestPreview } from '../api'
@@ -7,6 +8,7 @@ import { errorMessage } from '../errors'
 import { dueLabel } from '../dates'
 
 export function SettingsPage() {
+  useTitle('Settings')
   const { me, refresh } = useAuth()
   const navigate = useNavigate()
   const [preview, setPreview] = useState<DigestPreview | null>(null)
@@ -135,6 +137,7 @@ export function SettingsPage() {
 }
 
 export function GoodbyePage() {
+  useTitle('Account deleted')
   return (
     <section className="auth-card">
       <h1>Your account is deleted</h1>

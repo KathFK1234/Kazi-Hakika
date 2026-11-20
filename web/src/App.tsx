@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { api, type Meta } from './api'
 import { AuthProvider } from './auth'
 import { useAuth } from './auth-context'
@@ -8,6 +8,7 @@ import { ForgotPasswordPage, LoginPage, ResetPasswordPage, SignupPage, VerifyEma
 import { PrivacyPage } from './pages/PrivacyPage'
 import { GoodbyePage, SettingsPage } from './pages/SettingsPage'
 import { TrackerPage } from './pages/TrackerPage'
+import { useTitle } from './useTitle'
 
 const FALLBACK: Meta = { name: 'Kazi Hakika', tagline: 'verified roles, tracked your way.' }
 
@@ -87,6 +88,7 @@ function UnverifiedBanner() {
 }
 
 function NotFound() {
+  useTitle('Page not found')
   return (
     <section>
       <h1>Page not found</h1>
@@ -95,13 +97,30 @@ function NotFound() {
   )
 }
 
+/** After in-app navigation, move focus to the new page so it's announced. */
+function useFocusMainOnNavigate() {
+  const { pathname } = useLocation()
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    document.getElementById('main')?.focus()
+  }, [pathname])
+}
+
 export function AppRoutes() {
   const meta = useMeta()
+  useFocusMainOnNavigate()
   return (
     <div className="shell">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
       <Header meta={meta} />
       <UnverifiedBanner />
-      <main>
+      <main id="main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<RequireAuth><TrackerPage /></RequireAuth>} />
           <Route path="/applications/new" element={<RequireAuth><ApplicationPage /></RequireAuth>} />

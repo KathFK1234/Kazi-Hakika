@@ -87,7 +87,9 @@ def _mount_frontend(app: FastAPI, settings: Settings) -> None:
     )
     static_root = STATIC_DIR.resolve()
 
-    @app.get("/{path:path}", include_in_schema=False, response_model=None)
+    @app.api_route(
+        "/{path:path}", methods=["GET", "HEAD"], include_in_schema=False, response_model=None
+    )
     async def spa(path: str) -> FileResponse | HTMLResponse:
         if path == "api" or path.startswith(("api/", "mcp")):
             raise HTTPException(status_code=404)

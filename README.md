@@ -80,10 +80,39 @@ TEST_ADMIN_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres p
 (cd web && npm run lint && npm run typecheck && npm test)
 ```
 
+## Deploy (Railway)
+
+Two services and one database, all built from the same `Dockerfile`:
+
+| Service | Start command | Settings |
+| --- | --- | --- |
+| web | `scripts/start-web.sh` (the image default) | Serverless on (sleeps when idle), 0.5 vCPU / 512 MB replica limits, health check `/health` |
+| daily | `python -m app.jobs.daily` | Cron schedule `0 3 * * *` (06:00 in Nairobi). It runs, sends, exits |
+| Postgres | Railway Postgres | |
+
+Before the first deploy, set the workspace usage limits: an email alert at $5 and a hard limit (Railway takes everything offline at the hard limit instead of billing more).
+
+Variables:
+
+| Variable | web | daily |
+| --- | --- | --- |
+| `ENVIRONMENT` | `production` | `production` |
+| `DATABASE_URL` | the `kazi_app` URL (see below) | the `kazi_app` URL |
+| `MIGRATIONS_DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (owner) | not set |
+| `SECRET_KEY` | long random string | same |
+| `BASE_URL` | `https://<your-app>.up.railway.app` | same |
+| `TRUSTED_PROXY_HOPS` | `1` | not needed |
+| `RESEND_API_KEY`, `EMAIL_FROM` | from Resend | same |
+
+`scripts/start-web.sh` runs `alembic upgrade head` as the owner, then unsets `MIGRATIONS_DATABASE_URL` before starting the server, so the running app never holds the owner's password. The first migration creates the `kazi_app` role without a login. After the first deploy, give it one once (`railway connect Postgres`, then `ALTER ROLE kazi_app LOGIN PASSWORD '<random>';`) and build `DATABASE_URL` from it: `postgresql://kazi_app:<random>@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}`.
+
+Smoke test after each deploy: sign up, add an application due tomorrow, and check it appears under Settings → Next digest.
+
 ## Cost guardrails
 
 The target is about $5 a month on Railway's Hobby plan, with hard caps so a bug can't produce a large bill:
 
-- Request bodies capped at 64 KB.
+- One web service that sleeps when idle, one Postgres, one cron job that exits. No in-process schedulers or loops.
+- Request bodies capped at 64 KB; notes at 5,000 characters; lists paginated at 50; at most 2,000 applications per user.
 - Email budget: at most 90 emails a UTC day (under Resend's free 100). The count and the send share one transaction, so a failed send uses no budget and the 91st is refused and logged.
 - More caps arrive with each feature: rate limits, pagination, outbound timeouts.

@@ -49,7 +49,7 @@ jobs:
       - name: Tests
         run: pytest -q
       - name: Dependency audit
-        run: pip-audit --skip-editable
+        run: pip-audit -r requirements.txt
 
   web:
     runs-on: ubuntu-24.04
@@ -73,3 +73,13 @@ jobs:
       - run: npm run build
       - name: Dependency audit
         run: npm audit --audit-level=moderate
+
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Build the deploy image
+        run: docker build --pull -t kazi-hakika:ci .

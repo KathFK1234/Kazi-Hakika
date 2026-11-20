@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # 1) Build the React frontend into app/static.
-FROM node:22-trixie-slim AS web
+FROM node:26-trixie-slim AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund

@@ -75,7 +75,7 @@ Signed-in users can see what their next digest would hold at `/api/account/diges
 ## Checks
 
 ```bash
-ruff check . && ruff format --check . && mypy app tests
+ruff check . && ruff format --check . && mypy app tests scripts
 TEST_ADMIN_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres pytest -q
 (cd web && npm run lint && npm run typecheck && npm test)
 ```
@@ -117,7 +117,7 @@ Users' trackers live only in Postgres, so:
 - Restore into an empty database with `pg_restore --no-owner --dbname "$TARGET_URL" kazi-YYYY-MM-DD.dump`, then run `alembic upgrade head` and give `kazi_app` its password again.
 - Users can always download their own data from Settings.
 
-Smoke test after each deploy: sign up, add an application due tomorrow, and check it appears under Settings → Next digest.
+Smoke test after each deploy: `python scripts/smoke_test.py https://<your-app>.up.railway.app`. It signs up a throwaway account, adds an application due tomorrow, checks the digest preview lists it, checks the security headers, and deletes the account again (one sign-up email from the day's budget).
 
 ## Cost guardrails
 

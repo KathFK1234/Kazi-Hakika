@@ -2,13 +2,12 @@ from collections.abc import Iterator
 
 from fastapi.testclient import TestClient
 
-from app.config import Settings
 from app.main import create_app
+from tests.conftest import make_settings
 
 
 def make_client(**overrides: object) -> TestClient:
-    values: dict[str, object] = {"environment": "test", **overrides}
-    return TestClient(create_app(Settings(**values)))  # type: ignore[arg-type]
+    return TestClient(create_app(make_settings(**overrides)))
 
 
 def test_health_ok() -> None:
@@ -36,7 +35,7 @@ def test_production_rejects_default_secret() -> None:
     import pytest
 
     with pytest.raises(ValueError, match="SECRET_KEY"):
-        Settings(environment="production", base_url="https://kazi.example")
+        make_settings(environment="production", base_url="https://kazi.example")
 
 
 def test_body_over_64kb_rejected() -> None:

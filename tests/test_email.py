@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import Settings
 from app.services import email_templates
 from app.services.email import EmailMessage, EmailSendError, Mailer
+from tests.conftest import make_settings
 
 
 def _msg(n: int = 0) -> EmailMessage:
@@ -55,7 +56,7 @@ def test_zero_limit_sends_nothing(
     app_sessions: sessionmaker[Session], database_urls: tuple[str, str]
 ) -> None:
     delivered: list[EmailMessage] = []
-    s = Settings(environment="test", database_url=database_urls[1], email_daily_limit=0)
+    s = make_settings(database_url=database_urls[1], email_daily_limit=0)
     assert Mailer(app_sessions, s, delivered.append).send(_msg()) is False
     assert delivered == []
 

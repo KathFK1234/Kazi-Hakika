@@ -14,7 +14,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session, sessionmaker
 
-os.environ.setdefault("ENVIRONMENT", "test")
+# Tests never read a developer's .env: settings come only from code and CI env.
+os.environ["ENVIRONMENT"] = "test"
 
 from app.config import Settings
 from app.db import make_engine
@@ -74,7 +75,12 @@ def owner_engine(database_urls: tuple[str, str]) -> Iterator[Engine]:
 
 @pytest.fixture(scope="session")
 def settings(database_urls: tuple[str, str]) -> Settings:
-    return Settings(environment="test", database_url=database_urls[1])
+    return make_settings(database_url=database_urls[1])
+
+
+def make_settings(**values: object) -> Settings:
+    """Settings from code only, never from a local .env file."""
+    return Settings(_env_file=None, **{"environment": "test", **values})  # type: ignore[arg-type]
 
 
 @pytest.fixture(scope="session")

@@ -11,6 +11,7 @@ from app.config import Settings
 from app.jobs.daily import run
 from app.services.digest import today_eat
 from app.services.email import EmailMessage, EmailSendError, Mailer
+from tests.conftest import make_settings
 from tests.factories import make_application, make_user
 
 
@@ -93,7 +94,7 @@ def test_budget_runs_short_oldest_signups_first(
     for i in range(4):
         uid = _verified_user(owner_engine, f"user{i}", created_at=f"2026-01-0{i + 1}T00:00:00Z")
         make_application(owner_engine, uid, "r", today)
-    small = Settings(environment="test", database_url=database_urls[1], email_daily_limit=2)
+    small = make_settings(database_url=database_urls[1], email_daily_limit=2)
     sent: list[EmailMessage] = []
     with caplog.at_level(logging.WARNING):
         counts = run(app_sessions, Mailer(app_sessions, small, sent.append), small)

@@ -28,7 +28,14 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    engine = create_engine(_url(), poolclass=pool.NullPool, hide_parameters=True)
+    engine = create_engine(
+        _url(),
+        poolclass=pool.NullPool,
+        hide_parameters=True,
+        # Fail fast instead of queueing behind live traffic while holding up
+        # every other query on the table; retry the deploy instead.
+        connect_args={"options": "-c lock_timeout=10s -c statement_timeout=5min"},
+    )
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():

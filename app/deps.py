@@ -56,6 +56,17 @@ def enforce(request: Request, limit: Limit, key: str) -> None:
         )
 
 
+def enforce_not_blocked(request: Request, limit: Limit, key: str) -> None:
+    """Refuse if over the limit, without counting this request (count failures yourself)."""
+    limiter = get_limiter(request)
+    if limiter.blocked(limit, key):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Please wait and try again.",
+            headers={"Retry-After": str(limiter.retry_after(limit, key))},
+        )
+
+
 def get_system_db(request: Request) -> Iterator[Session]:
     """A session with no RLS identity: only for auth tables (users, sessions, tokens)."""
     with get_sessionmaker(request)() as session:

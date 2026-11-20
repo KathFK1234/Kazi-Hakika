@@ -25,6 +25,7 @@ from app.deps import (
     SystemDb,
     client_ip,
     enforce,
+    enforce_not_blocked,
     get_limiter,
     optional_auth,
 )
@@ -32,7 +33,8 @@ from app.models import AuthToken, User, UserSession
 from app.services import email_templates
 from app.services.passwords import hash_password, needs_rehash, verify_password
 from app.services.ratelimit import (
-    LOGIN_PER_EMAIL,
+    LOGIN_FAILS_PER_EMAIL,
+    LOGIN_FAILS_PER_EMAIL_IP,
     LOGIN_PER_IP,
     RESET_PER_EMAIL,
     RESET_PER_IP,
@@ -231,12 +233,18 @@ def login(
     body: LoginIn, request: Request, response: Response, db: SystemDb, settings: SettingsDep
 ) -> dict[str, str]:
     email = body.email.strip().lower()
-    enforce(request, LOGIN_PER_IP, client_ip(request))
-    enforce(request, LOGIN_PER_EMAIL, email)
+    ip = client_ip(request)
+    email_ip = f"{email}|{ip}"
+    enforce(request, LOGIN_PER_IP, ip)
+    enforce_not_blocked(request, LOGIN_FAILS_PER_EMAIL_IP, email_ip)
+    enforce_not_blocked(request, LOGIN_FAILS_PER_EMAIL, email)
 
     user = db.scalar(select(User).where(User.email == email, User.deleted_at.is_(None)))
     password_ok = verify_password(user.password_hash if user else None, body.password)
     if user is None or not password_ok:
+        limiter = get_limiter(request)
+        limiter.hit(LOGIN_FAILS_PER_EMAIL_IP, email_ip)
+        limiter.hit(LOGIN_FAILS_PER_EMAIL, email)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Wrong email or password.")
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)

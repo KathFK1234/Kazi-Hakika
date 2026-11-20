@@ -1,8 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.services.email import EmailMessage
+from app.main import create_app
+from app.services.email import EmailMessage, Mailer
+from app.services.ratelimit import LOGIN_FAILS_PER_EMAIL, LOGIN_FAILS_PER_EMAIL_IP, RateLimiter
+from tests.conftest import make_settings
 from tests.helpers import PASSWORD, login, signup, token_from
 
 
@@ -222,3 +226,55 @@ def test_signup_emails_one_per_address_per_day(
         assert r.status_code == 202
     # The address already got today's sign-up email, so no more are sent.
     assert len(outbox) == before
+
+
+def _login_from(client: TestClient, ip: str, email: str, password: str) -> int:
+    r = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-Forwarded-For": ip},
+    )
+    return int(r.status_code)
+
+
+@pytest.fixture
+def proxied(
+    database_urls: tuple[str, str],
+    app_sessions: sessionmaker[Session],
+    outbox: list[EmailMessage],
+) -> TestClient:
+    """A client behind one trusted proxy, so X-Forwarded-For picks the IP."""
+    settings = make_settings(database_url=database_urls[1], trusted_proxy_hops=1)
+    app = create_app(settings)
+    app.state.sessionmaker = app_sessions
+    app.state.mailer = Mailer(app_sessions, settings, outbox.append)
+    return TestClient(app, base_url="http://localhost:8000")
+
+
+def test_failed_logins_elsewhere_do_not_lock_the_owner_out(
+    proxied: TestClient, outbox: list[EmailMessage]
+) -> None:
+    email = signup(proxied, outbox, "lockout")
+    for i in range(5):
+        assert _login_from(proxied, "203.0.113.9", email, f"wrong guess {i}") == 401
+    assert _login_from(proxied, "203.0.113.9", email, "wrong guess 6") == 429
+    # The owner, from their own address, still gets in.
+    assert _login_from(proxied, "198.51.100.7", email, PASSWORD) == 200
+
+
+def test_failures_per_account_and_address_are_capped(
+    proxied: TestClient, outbox: list[EmailMessage]
+) -> None:
+    email = signup(proxied, outbox, "guessed")
+    # Spread over many addresses so the per-IP limit never triggers.
+    for i in range(10):
+        assert _login_from(proxied, f"203.0.113.{i}", email, "wrong guess") == 401
+    limiter: RateLimiter = proxied.app.state.limiter  # type: ignore[attr-defined]
+    assert not limiter.blocked(LOGIN_FAILS_PER_EMAIL, email)
+    for _ in range(10):
+        limiter.hit(LOGIN_FAILS_PER_EMAIL_IP, f"{email}|192.0.2.1")
+    assert _login_from(proxied, "192.0.2.1", email, PASSWORD) == 429
+    # Successful logins don't count as failures.
+    for _ in range(3):
+        assert _login_from(proxied, "198.51.100.7", email, PASSWORD) == 200
+    assert not limiter.blocked(LOGIN_FAILS_PER_EMAIL_IP, f"{email}|198.51.100.7")

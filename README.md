@@ -63,7 +63,7 @@ Each user's rows are protected twice: every query filters by the signed-in user,
 - Sessions are random 256-bit tokens in an HTTP-only, SameSite=Lax cookie (Secure and `__Host-` prefixed in production). The database stores only their SHA-256.
 - Every state-changing request needs the session's CSRF token in `X-CSRF-Token`, must be JSON, and is refused if the browser says it came from another origin.
 - Sign-up and password reset answer the same way whether or not an email has an account. Unknown emails take the same hashing time on login.
-- Rate limits: login 5 a minute per IP (and 10 an hour per email), sign-up 5 an hour per IP, reset 3 an hour per email.
+- Rate limits: login 5 a minute per IP; failed logins 10 an hour per account from one IP and 50 an hour per account overall (successful logins never count, so others can't lock you out from elsewhere); sign-up 5 an hour per IP; reset 3 an hour per email.
 - Verification (24 h) and reset (1 h) links are single-use, stored hashed, and carry the token in the URL fragment so it never reaches server logs. A reset signs you out everywhere.
 
 ### Daily reminders

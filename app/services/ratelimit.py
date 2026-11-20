@@ -39,6 +39,13 @@ class RateLimiter:
             self._hits[bucket] = (start, count + 1)
             return True
 
+    def blocked(self, limit: Limit, key: str) -> bool:
+        """True if the key is at its limit, without counting an attempt."""
+        now = self._now()
+        with self._lock:
+            start, count = self._hits.get((limit.name, key), (now, 0))
+        return now - start < limit.seconds and count >= limit.count
+
     def retry_after(self, limit: Limit, key: str) -> int:
         with self._lock:
             start, _ = self._hits.get((limit.name, key), (self._now(), 0))
@@ -59,7 +66,10 @@ class RateLimiter:
 
 
 LOGIN_PER_IP = Limit("login-ip", 5, 60)
-LOGIN_PER_EMAIL = Limit("login-email", 10, 3600)
+# Failed logins only, so typing someone's email can't lock them out quickly:
+# 10 an hour from one IP for one account, 50 an hour for one account overall.
+LOGIN_FAILS_PER_EMAIL_IP = Limit("login-fail-email-ip", 10, 3600)
+LOGIN_FAILS_PER_EMAIL = Limit("login-fail-email", 50, 3600)
 SIGNUP_PER_IP = Limit("signup-ip", 5, 3600)
 # One sign-up email (verification or already-registered) per address per day.
 SIGNUP_EMAIL_PER_ADDRESS = Limit("signup-email", 1, 86400)

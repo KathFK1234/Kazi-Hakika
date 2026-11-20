@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Application
-from app.services.email import EmailMessage
+from app.services.email import DIGEST_KIND, EmailMessage
 from app.services.email_templates import Brand
 
 DIGEST_DAYS = 3
@@ -99,4 +99,4 @@ def digest_message(
         f'<a href="{escape(settings_url, quote=True)}">Settings</a>.<br>'
         f"{escape(brand.name)}: {escape(brand.tagline)}</p></body></html>"
     )
-    return EmailMessage(to=to, subject=subject, text=text, html=html, kind="digest")
+    return EmailMessage(to=to, subject=subject, text=text, html=html, kind=DIGEST_KIND)

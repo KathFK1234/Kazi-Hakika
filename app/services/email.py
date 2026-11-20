@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 
 RESEND_URL = "https://api.resend.com/emails"
 SEND_TIMEOUT_SECONDS = 5.0
+DIGEST_KIND = "digest"
 
 
 @dataclass(frozen=True)
@@ -83,17 +84,27 @@ class Mailer:
     def __init__(self, sessions: sessionmaker[Session], settings: Settings, transport: Transport):
         self.sessions = sessions
         self.limit = settings.email_daily_limit
+        self.reserve = min(settings.email_digest_reserve, settings.email_daily_limit)
         self.transport = transport
 
-    def remaining_today(self) -> int:
+    def _cap(self, kind: str) -> int:
+        """Digests may use the whole budget; everything else leaves the reserve.
+
+        Anonymous traffic (sign-ups, resets) can therefore never spend the
+        emails the morning reminders need.
+        """
+        return self.limit if kind == DIGEST_KIND else self.limit - self.reserve
+
+    def remaining_today(self, kind: str = DIGEST_KIND) -> int:
         with self.sessions() as s:
             sent = s.execute(
                 text("SELECT sent_count FROM email_budget WHERE day = :d"), {"d": _today()}
             ).scalar_one_or_none()
-        return max(self.limit - (sent or 0), 0)
+        return max(self._cap(kind) - (sent or 0), 0)
 
     def send(self, message: EmailMessage) -> bool:
         """True if sent. False if refused by the budget or the provider failed."""
+        cap = self._cap(message.kind)
         with self.sessions() as s, s.begin():
             # Atomic check-and-increment: the row lock serialises concurrent sends.
             counted = s.execute(
@@ -106,12 +117,12 @@ class Mailer:
                     RETURNING sent_count
                     """
                 ),
-                {"d": _today(), "limit": self.limit},
+                {"d": _today(), "limit": cap},
             ).scalar_one_or_none()
-            if counted is None or counted > self.limit:
+            if counted is None or counted > cap:
                 s.rollback()
                 log.warning(
-                    "email refused: daily budget of %d used up (kind=%s)", self.limit, message.kind
+                    "email refused: daily budget of %d used up (kind=%s)", cap, message.kind
                 )
                 return False
             try:

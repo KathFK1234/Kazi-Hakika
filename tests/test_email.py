@@ -10,8 +10,8 @@ from app.services.email import EmailMessage, EmailSendError, Mailer
 from tests.conftest import make_settings
 
 
-def _msg(n: int = 0) -> EmailMessage:
-    return EmailMessage(to=f"u{n}@example.com", subject="s", text="t", html="h", kind="test")
+def _msg(n: int = 0, kind: str = "test") -> EmailMessage:
+    return EmailMessage(to=f"u{n}@example.com", subject="s", text="t", html="h", kind=kind)
 
 
 def _sent_today(owner: Engine) -> int:
@@ -31,10 +31,11 @@ def test_91st_email_is_refused_and_logged(
     mailer = Mailer(app_sessions, settings, delivered.append)
     assert settings.email_daily_limit == 90
 
-    results = [mailer.send(_msg(i)) for i in range(90)]
+    # Digests may use the whole budget (other kinds stop at the reserve).
+    results = [mailer.send(_msg(i, "digest")) for i in range(90)]
     assert all(results)
     with caplog.at_level(logging.WARNING):
-        assert mailer.send(_msg(91)) is False
+        assert mailer.send(_msg(91, "digest")) is False
     assert len(delivered) == 90
     assert _sent_today(owner_engine) == 90
     assert "daily budget of 90 used up" in caplog.text
@@ -68,3 +69,16 @@ def test_templates_escape_html_and_keep_token_in_fragment() -> None:
     assert "&lt;script&gt;" in msg.html
     assert "https://kazi.example/verify-email#token=tok123" in msg.text
     assert "?token" not in msg.text
+
+
+def test_non_digest_emails_leave_the_digest_reserve(
+    app_sessions: sessionmaker[Session], database_urls: tuple[str, str]
+) -> None:
+    s = make_settings(database_url=database_urls[1], email_daily_limit=5, email_digest_reserve=2)
+    sent: list[EmailMessage] = []
+    mailer = Mailer(app_sessions, s, sent.append)
+    signups = [mailer.send(_msg(i)) for i in range(5)]
+    assert signups == [True, True, True, False, False]
+    digest = EmailMessage(to="d@example.com", subject="s", text="t", html="h", kind="digest")
+    assert [mailer.send(digest) for _ in range(3)] == [True, True, False]
+    assert len(sent) == 5

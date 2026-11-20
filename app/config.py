@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr | None = None
     email_from: str = "Kazi Hakika <onboarding@resend.dev>"
     email_daily_limit: int = Field(default=90, ge=0, le=100)
+    # Held back for the daily digest: other emails stop at limit - reserve.
+    email_digest_reserve: int = Field(default=30, ge=0, le=100)
 
     # Size caps.
     max_body_bytes: int = 64 * 1024

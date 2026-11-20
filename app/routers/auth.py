@@ -25,6 +25,7 @@ from app.deps import (
     SystemDb,
     client_ip,
     enforce,
+    get_limiter,
     optional_auth,
 )
 from app.models import AuthToken, User, UserSession
@@ -35,6 +36,7 @@ from app.services.ratelimit import (
     LOGIN_PER_IP,
     RESET_PER_EMAIL,
     RESET_PER_IP,
+    SIGNUP_EMAIL_PER_ADDRESS,
     SIGNUP_PER_IP,
     TOKEN_USE_PER_IP,
     VERIFY_RESEND_PER_USER,
@@ -196,11 +198,14 @@ def signup(
     enforce(request, SIGNUP_PER_IP, client_ip(request))
     brand = email_templates.Brand.from_settings(settings)
 
+    may_email = get_limiter(request).hit(SIGNUP_EMAIL_PER_ADDRESS, body.email)
+
     existing = db.scalar(select(User).where(User.email == body.email))
     if existing is not None:
         hash_password(body.password)  # same cost as the new-account path
         db.rollback()
-        mailer.send(email_templates.already_registered(brand, body.email))
+        if may_email:
+            mailer.send(email_templates.already_registered(brand, body.email))
         return CHECK_EMAIL
 
     if db.scalar(select(User.id).where(User.handle == body.handle)) is not None:
@@ -216,7 +221,8 @@ def signup(
         raise HTTPException(status.HTTP_409_CONFLICT, detail="That handle is taken.") from None
     token = _issue_token(db, user.id, "verify_email", VERIFY_TTL)
     db.commit()
-    mailer.send(email_templates.verify_email(brand, user.email, user.handle, token))
+    if may_email:
+        mailer.send(email_templates.verify_email(brand, user.email, user.handle, token))
     return CHECK_EMAIL
 
 

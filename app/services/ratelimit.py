@@ -61,7 +61,9 @@ class RateLimiter:
 LOGIN_PER_IP = Limit("login-ip", 5, 60)
 LOGIN_PER_EMAIL = Limit("login-email", 10, 3600)
 SIGNUP_PER_IP = Limit("signup-ip", 5, 3600)
+# One sign-up email (verification or already-registered) per address per day.
+SIGNUP_EMAIL_PER_ADDRESS = Limit("signup-email", 1, 86400)
 RESET_PER_IP = Limit("reset-ip", 5, 3600)
 RESET_PER_EMAIL = Limit("reset-email", 3, 3600)
-VERIFY_RESEND_PER_USER = Limit("verify-resend", 3, 3600)
+VERIFY_RESEND_PER_USER = Limit("verify-resend", 3, 86400)
 TOKEN_USE_PER_IP = Limit("token-use-ip", 20, 3600)

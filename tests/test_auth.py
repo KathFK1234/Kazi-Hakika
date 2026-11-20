@@ -56,6 +56,8 @@ def test_signup_existing_email_does_not_reveal_it(
     client: TestClient, outbox: list[EmailMessage]
 ) -> None:
     signup(client, outbox, "kamau")
+    # A new day for the per-address email limit.
+    client.app.state.limiter.reset()  # type: ignore[attr-defined]
     r = client.post(
         "/api/auth/signup",
         json={"email": "kamau@example.com", "password": PASSWORD, "handle": "kamau2"},
@@ -205,3 +207,18 @@ def test_expired_session_is_rejected(
 def test_me_is_not_cached(client: TestClient, outbox: list[EmailMessage]) -> None:
     login(client, signup(client, outbox, "halima"))
     assert client.get("/api/auth/me").headers["cache-control"] == "no-store"
+
+
+def test_signup_emails_one_per_address_per_day(
+    client: TestClient, outbox: list[EmailMessage]
+) -> None:
+    signup(client, outbox, "repeat")
+    before = len(outbox)
+    for handle in ("repeat2", "repeat3"):
+        r = client.post(
+            "/api/auth/signup",
+            json={"email": "repeat@example.com", "password": PASSWORD, "handle": handle},
+        )
+        assert r.status_code == 202
+    # The address already got today's sign-up email, so no more are sent.
+    assert len(outbox) == before

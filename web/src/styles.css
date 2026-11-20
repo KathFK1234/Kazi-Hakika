@@ -7,6 +7,7 @@
   --accent: #0f6b4f;
   --accent-text: #ffffff;
   --border: #d4d2ca;
+  --control-border: #85827a;
   --danger: #a3261b;
   --warn: #7a4f00;
   --ok: #0f6b4f;
@@ -27,6 +28,7 @@
     --accent: #5fc79f;
     --accent-text: #0d1f18;
     --border: #44453f;
+    --control-border: #85837c;
     --danger: #f08b80;
     --warn: #e8b85a;
     --ok: #5fc79f;
@@ -166,7 +168,7 @@ button,
   min-height: 44px;
   padding: 0.5rem 1rem;
   border-radius: var(--radius);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
@@ -216,7 +218,7 @@ textarea {
   width: 100%;
   min-height: 44px;
   padding: 0.5rem 0.65rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);

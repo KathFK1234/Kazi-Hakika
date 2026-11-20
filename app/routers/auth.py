@@ -179,7 +179,7 @@ def _start_session(db: Session, response: Response, settings: Settings, user: Us
     )
 
 
-def _clear_cookie(response: Response, settings: Settings) -> None:
+def clear_session_cookie(response: Response, settings: Settings) -> None:
     response.delete_cookie(
         settings.session_cookie_name,
         path="/",
@@ -243,7 +243,7 @@ def login(
 def logout(auth: AuthDep, response: Response, db: SystemDb, settings: SettingsDep) -> Response:
     db.execute(delete(UserSession).where(UserSession.id == auth.session_id))
     db.commit()
-    _clear_cookie(response, settings)
+    clear_session_cookie(response, settings)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
 

@@ -34,7 +34,7 @@ One FastAPI service serves the API and the built React frontend, alongside one P
 
 ## Run it locally
 
-Needs Python 3.14+, Node 22.22+ (the image builds on Node 26) and Docker (or any PostgreSQL 16+).
+Needs Python 3.14+, Node 22.22.2+ (the image builds on Node 26) and Docker (or any PostgreSQL 16+).
 
 ```bash
 python -m venv .venv && . .venv/bin/activate

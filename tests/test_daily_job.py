@@ -151,3 +151,25 @@ def test_digest_preview(client: TestClient, outbox: list[EmailMessage]) -> None:
     preview = me.get("/api/account/digest-preview").json()
     assert preview["will_send"] is True
     assert [i["role_title"] for i in preview["items"]] == ["Soon"]
+
+
+def test_main_exits_0_on_success(
+    monkeypatch: pytest.MonkeyPatch, database_urls: tuple[str, str]
+) -> None:
+    from app.jobs import daily
+
+    monkeypatch.setattr(daily, "get_settings", lambda: make_settings(database_url=database_urls[1]))
+    assert daily.main() == 0
+
+
+def test_main_exits_1_on_database_failure_without_leaking_details(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    from app.jobs import daily
+
+    unreachable = "postgresql+psycopg://kazi_app:s3cret-pw@127.0.0.1:1/nowhere"
+    monkeypatch.setattr(daily, "get_settings", lambda: make_settings(database_url=unreachable))
+    with caplog.at_level(logging.INFO):
+        assert daily.main() == 1
+    assert "daily job failed" in caplog.text
+    assert "s3cret-pw" not in caplog.text

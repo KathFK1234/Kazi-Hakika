@@ -1,10 +1,23 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+
+// FastAPI fills these from APP_NAME/APP_TAGLINE when it serves the build.
+// The dev server has no FastAPI in front of index.html, so fill in defaults.
+function devPlaceholders(): Plugin {
+  return {
+    name: 'kazi-dev-placeholders',
+    apply: 'serve',
+    transformIndexHtml: (html) =>
+      html
+        .replaceAll('__APP_NAME__', 'Kazi Hakika')
+        .replaceAll('__APP_TAGLINE__', 'verified roles, tracked your way.'),
+  }
+}
 
 // The build goes straight into the FastAPI package, which serves it.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), devPlaceholders()],
   build: {
     outDir: '../app/static',
     emptyOutDir: true,

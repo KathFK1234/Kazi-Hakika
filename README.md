@@ -104,6 +104,8 @@ Variables:
 | `TRUSTED_PROXY_HOPS` | `1` | not needed |
 | `RESEND_API_KEY`, `EMAIL_FROM` | from Resend | same |
 
+Until a domain is verified in Resend, `EMAIL_FROM` can only be Resend's test sender (`onboarding@resend.dev`), and it delivers only to the Resend account owner's own address. Fine for trying it out; real users need the domain (Phase 4).
+
 `scripts/start-web.sh` runs `alembic upgrade head` as the owner, then unsets `MIGRATIONS_DATABASE_URL` before starting the server, so the running app never holds the owner's password. The first migration creates the `kazi_app` role without a login. After the first deploy, give it one once (`railway connect Postgres`, then `ALTER ROLE kazi_app LOGIN PASSWORD '<random>';`) and build `DATABASE_URL` from it: `postgresql://kazi_app:<random>@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}`.
 
 Smoke test after each deploy: sign up, add an application due tomorrow, and check it appears under Settings → Next digest.

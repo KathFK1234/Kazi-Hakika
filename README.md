@@ -101,7 +101,7 @@ Variables:
 | `MIGRATIONS_DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (owner) | not set |
 | `SECRET_KEY` | long random string | same |
 | `BASE_URL` | `https://<your-app>.up.railway.app` | same |
-| `TRUSTED_PROXY_HOPS` | `1` | not needed |
+| `TRUSTED_PROXY_HOPS` | `1` (required in production) | `1` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | from Resend | same |
 
 Until a domain is verified in Resend, `EMAIL_FROM` can only be Resend's test sender (`onboarding@resend.dev`), and it delivers only to the Resend account owner's own address. Fine for trying it out; real users need the domain (Phase 4).

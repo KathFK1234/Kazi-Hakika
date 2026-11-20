@@ -6,6 +6,13 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from tests.conftest import make_settings
 
+PROD: dict[str, object] = {
+    "environment": "production",
+    "secret_key": "x" * 40,
+    "base_url": "https://kazi.example",
+    "trusted_proxy_hops": 1,
+}
+
 
 def make_client(**overrides: object) -> TestClient:
     return TestClient(create_app(make_settings(**overrides)))
@@ -26,9 +33,7 @@ def test_security_headers_present() -> None:
 
 
 def test_hsts_only_in_production() -> None:
-    client = make_client(
-        environment="production", secret_key="x" * 40, base_url="https://kazi.example"
-    )
+    client = make_client(**PROD)
     assert "max-age=" in client.get("/health").headers["strict-transport-security"]
 
 
@@ -73,9 +78,7 @@ def test_unknown_api_path_is_404_not_spa() -> None:
 
 
 def test_docs_hidden_in_production() -> None:
-    client = make_client(
-        environment="production", secret_key="x" * 40, base_url="https://kazi.example"
-    )
+    client = make_client(**PROD)
     assert client.get("/api/docs").status_code == 404
     assert client.get("/api/openapi.json").status_code == 404
 
@@ -88,3 +91,10 @@ def test_meta_uses_settings() -> None:
 def test_spa_path_traversal_blocked() -> None:
     response = make_client().get("/..%2F..%2Fconfig.py")
     assert "BaseSettings" not in response.text
+
+
+def test_production_needs_trusted_proxy_hops_set() -> None:
+    values = {k: v for k, v in PROD.items() if k != "trusted_proxy_hops"}
+    with pytest.raises(ValueError, match="TRUSTED_PROXY_HOPS"):
+        make_settings(**values)
+    assert make_settings(**PROD).trusted_proxy_hops == 1

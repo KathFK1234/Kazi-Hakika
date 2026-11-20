@@ -77,6 +77,10 @@ class Settings(BaseSettings):
                 )
             if not self.base_url.startswith("https://"):
                 raise ValueError("BASE_URL must be https in production")
+            if "trusted_proxy_hops" not in self.model_fields_set:
+                # Left at 0 behind Railway's proxy, every visitor would share
+                # one rate-limit bucket and 5 logins a minute would block all.
+                raise ValueError("Set TRUSTED_PROXY_HOPS in production (1 on Railway)")
         return self
 
 

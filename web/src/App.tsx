@@ -5,6 +5,7 @@ import { AuthProvider } from './auth'
 import { useAuth } from './auth-context'
 import { ApplicationPage } from './pages/ApplicationPage'
 import { ForgotPasswordPage, LoginPage, ResetPasswordPage, SignupPage, VerifyEmailPage } from './pages/AuthPages'
+import { PrivacyPage } from './pages/PrivacyPage'
 import { GoodbyePage, SettingsPage } from './pages/SettingsPage'
 import { TrackerPage } from './pages/TrackerPage'
 
@@ -112,12 +113,14 @@ export function AppRoutes() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/goodbye" element={<GoodbyePage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       <footer className="site-footer">
         <p>
-          {meta.name}: {meta.tagline} We never apply for you and never promise a job.
+          {meta.name}: {meta.tagline} We never apply for you and never promise a job.{' '}
+          <Link to="/privacy">Your data</Link>
         </p>
       </footer>
     </div>

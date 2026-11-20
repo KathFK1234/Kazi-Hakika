@@ -517,3 +517,15 @@ input[type='checkbox'] {
     scroll-behavior: auto !important;
   }
 }
+
+.prose {
+  max-width: 44rem;
+}
+
+.prose li {
+  margin: 0.3rem 0;
+}
+
+.prose h2 {
+  margin-top: 1.5rem;
+}

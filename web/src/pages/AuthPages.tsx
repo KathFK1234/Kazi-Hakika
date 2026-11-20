@@ -79,7 +79,9 @@ export function SignupPage() {
   return (
     <section className="auth-card">
       <h1>Create your account</h1>
-      <p className="muted">Free. Your applications are private to you.</p>
+      <p className="muted">
+        Free. Your applications are private to you. <Link to="/privacy">What we store</Link>
+      </p>
       <form onSubmit={submit} noValidate>
         <Field label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         <Field

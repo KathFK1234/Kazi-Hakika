@@ -210,6 +210,15 @@ describe('account', () => {
     expect(calls.find((c) => c.path === '/api/auth/logout')?.headers['X-CSRF-Token']).toBe('csrf-123')
   })
 
+  it('has a privacy notice linked from the footer, open to everyone', async () => {
+    mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': signedOut })
+    renderAt('/signup')
+    expect(await screen.findByRole('link', { name: 'What we store' })).toHaveAttribute('href', '/privacy')
+    await userEvent.click(screen.getByRole('link', { name: 'Your data' }))
+    expect(await screen.findByRole('heading', { name: 'Your data, in plain words' })).toBeInTheDocument()
+    expect(screen.getByText(/Resend sends our emails/)).toBeInTheDocument()
+  })
+
   it('shows a not-found page for unknown routes', async () => {
     mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': ME })
     renderAt('/no/such/page')

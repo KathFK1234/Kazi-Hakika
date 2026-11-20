@@ -37,7 +37,7 @@ def configure_logging(settings: Settings) -> None:
         logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, static_dir: Path = STATIC_DIR) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings)
 
@@ -59,7 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(applications.router)
     app.include_router(account.router)
 
-    _mount_frontend(app, settings)
+    _mount_frontend(app, settings, static_dir)
 
     # Outermost last: the size cap runs before anything reads the body.
     app.add_middleware(SameOriginMiddleware, allowed_origins=_allowed_origins(settings))
@@ -77,13 +77,13 @@ def _allowed_origins(settings: Settings) -> frozenset[str]:
     return frozenset(origins)
 
 
-def _mount_frontend(app: FastAPI, settings: Settings) -> None:
+def _mount_frontend(app: FastAPI, settings: Settings, static_dir: Path) -> None:
     """Serve the Vite build from app/static, with index.html for client-side routes."""
-    assets = STATIC_DIR / "assets"
+    assets = static_dir / "assets"
     if assets.is_dir():
         app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
-    index_path = STATIC_DIR / "index.html"
+    index_path = static_dir / "index.html"
     index_html = (
         index_path.read_text(encoding="utf-8")
         .replace("__APP_NAME__", html.escape(settings.app_name))
@@ -91,7 +91,7 @@ def _mount_frontend(app: FastAPI, settings: Settings) -> None:
         if index_path.is_file()
         else None
     )
-    static_root = STATIC_DIR.resolve()
+    static_root = static_dir.resolve()
 
     @app.api_route(
         "/{path:path}", methods=["GET", "HEAD"], include_in_schema=False, response_model=None
@@ -100,7 +100,7 @@ def _mount_frontend(app: FastAPI, settings: Settings) -> None:
         if path == "api" or path.startswith(("api/", "mcp")):
             raise HTTPException(status_code=404)
         if path:
-            candidate = (STATIC_DIR / path).resolve()
+            candidate = (static_dir / path).resolve()
             if candidate.is_relative_to(static_root) and candidate.is_file():
                 return FileResponse(candidate)
         if index_html is None:

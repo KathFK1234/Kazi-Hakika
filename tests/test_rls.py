@@ -149,3 +149,26 @@ def test_database_errors_are_logged_without_user_data(
     assert "private.person@example.com" not in caplog.text
     assert "sqlstate=23514" in caplog.text
     assert "ck_users_handle_format" in caplog.text
+
+
+def test_stage_history_is_append_only_for_the_app(
+    owner_engine: Engine, app_sessions: sessionmaker[Session]
+) -> None:
+    a = make_user(owner_engine)
+    app_id = make_application(owner_engine, a)
+    with app_sessions() as s:
+        set_session_user(s, a)
+        s.add(StageEvent(application_id=app_id, user_id=a, to_stage="saved", at=datetime.now(UTC)))
+        s.commit()
+    for sql in ("UPDATE stage_events SET to_stage = 'offer'", "DELETE FROM stage_events"):
+        with app_sessions() as s:
+            set_session_user(s, a)
+            with pytest.raises(DBAPIError, match="permission denied"):
+                s.execute(text(sql))
+    # Deleting the application still removes its history through the cascade.
+    with app_sessions() as s:
+        set_session_user(s, a)
+        s.execute(text("DELETE FROM applications WHERE id = :i"), {"i": app_id})
+        s.commit()
+    with owner_engine.connect() as c:
+        assert c.execute(text("SELECT count(*) FROM stage_events")).scalar_one() == 0

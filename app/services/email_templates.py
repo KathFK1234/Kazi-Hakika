@@ -18,26 +18,36 @@ class Brand:
         return cls(settings.app_name, settings.app_tagline, settings.base_url.rstrip("/"))
 
 
+def layout(brand: Brand, inner_html: str, footer_html: str = "") -> str:
+    """The one HTML shell for every email. inner_html must already be escaped."""
+    footer = f"{footer_html}<br>" if footer_html else ""
+    return (
+        '<!doctype html><html><body style="font-family:sans-serif;line-height:1.5;'
+        'max-width:36rem">'
+        f"{inner_html}"
+        f'<p style="color:#666">{footer}{escape(brand.name)}: {escape(brand.tagline)}</p>'
+        "</body></html>"
+    )
+
+
+def text_footer(brand: Brand) -> str:
+    return f"-- \n{brand.name}: {brand.tagline}"
+
+
 def _html(brand: Brand, paragraphs: list[str], link: tuple[str, str] | None = None) -> str:
     body = "".join(f"<p>{escape(p)}</p>" for p in paragraphs)
     if link:
         label, url = link
         body += f'<p><a href="{escape(url, quote=True)}">{escape(label)}</a></p>'
         body += f"<p>Or paste this link into your browser:<br>{escape(url)}</p>"
-    return (
-        '<!doctype html><html><body style="font-family:sans-serif;line-height:1.5;'
-        'max-width:36rem">'
-        f"{body}"
-        f'<p style="color:#666">{escape(brand.name)}: {escape(brand.tagline)}</p>'
-        "</body></html>"
-    )
+    return layout(brand, body)
 
 
 def _text(brand: Brand, paragraphs: list[str], link: tuple[str, str] | None = None) -> str:
     parts = list(paragraphs)
     if link:
         parts.append(f"{link[0]}: {link[1]}")
-    parts.append(f"-- \n{brand.name}: {brand.tagline}")
+    parts.append(text_footer(brand))
     return "\n\n".join(parts)
 
 

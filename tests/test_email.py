@@ -82,3 +82,19 @@ def test_non_digest_emails_leave_the_digest_reserve(
     digest = EmailMessage(to="d@example.com", subject="s", text="t", html="h", kind="digest")
     assert [mailer.send(digest) for _ in range(3)] == [True, True, False]
     assert len(sent) == 5
+
+
+def test_digest_uses_the_shared_layout_and_escapes() -> None:
+    from datetime import date
+
+    from app.services.digest import DigestItem, digest_message
+
+    brand = email_templates.Brand("Kazi", "tag", "https://kazi.example")
+    item = DigestItem("<b>Dev</b>", "A & B", "applied", date(2026, 11, 21))
+    msg = digest_message(brand, "a@example.com", "amina", [item], date(2026, 11, 20))
+    assert msg.kind == "digest"
+    assert "&lt;b&gt;Dev&lt;/b&gt;" in msg.html and "A &amp; B" in msg.html
+    assert "due tomorrow" in msg.text
+    assert msg.html.startswith("<!doctype html>") and "Kazi: tag" in msg.html
+    assert msg.text.endswith("-- \nKazi: tag")
+    assert "https://kazi.example/settings" in msg.html

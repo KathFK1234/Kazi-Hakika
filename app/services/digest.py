@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Application
 from app.services.email import DIGEST_KIND, EmailMessage
-from app.services.email_templates import Brand
+from app.services.email_templates import Brand, layout, text_footer
 
 DIGEST_DAYS = 3
 # Rejected and withdrawn roles need no reminder.
@@ -81,7 +81,7 @@ def digest_message(
             "",
             f"Turn these reminders off in Settings: {settings_url}",
             "",
-            f"-- \n{brand.name}: {brand.tagline}",
+            text_footer(brand),
         ]
     )
     rows = "".join(
@@ -89,14 +89,12 @@ def digest_message(
         f"({escape(i.stage)}): due {escape(_when(i.deadline, today))}</li>"
         for i in items
     )
-    html = (
-        '<!doctype html><html><body style="font-family:sans-serif;line-height:1.5;'
-        'max-width:36rem">'
+    html = layout(
+        brand,
         f"<p>Hi {escape(handle)},</p><p>These deadlines are in the next 3 days:</p>"
         f"<ul>{rows}</ul>"
-        f'<p><a href="{escape(app_url, quote=True)}">Open your tracker</a></p>'
-        f'<p style="color:#666">Turn these reminders off in '
-        f'<a href="{escape(settings_url, quote=True)}">Settings</a>.<br>'
-        f"{escape(brand.name)}: {escape(brand.tagline)}</p></body></html>"
+        f'<p><a href="{escape(app_url, quote=True)}">Open your tracker</a></p>',
+        footer_html="Turn these reminders off in "
+        f'<a href="{escape(settings_url, quote=True)}">Settings</a>.',
     )
     return EmailMessage(to=to, subject=subject, text=text, html=html, kind=DIGEST_KIND)

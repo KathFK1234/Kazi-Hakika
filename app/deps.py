@@ -101,9 +101,7 @@ def optional_auth(request: Request, db: SystemDb) -> Auth | None:
     db.rollback()  # end the read transaction; this session is reused by nobody else
     if row is None:
         return None
-    auth = Auth(user_id=row.user_id, session_id=row.id, csrf_token=row.csrf_token)
-    request.state.user_id = auth.user_id
-    return auth
+    return Auth(user_id=row.user_id, session_id=row.id, csrf_token=row.csrf_token)
 
 
 def require_auth(request: Request, auth: Annotated[Auth | None, Depends(optional_auth)]) -> Auth:

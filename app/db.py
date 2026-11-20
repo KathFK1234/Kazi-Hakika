@@ -53,7 +53,11 @@ def _set_rls_user(session: Session, transaction: SessionTransaction, connection:
 
 
 def set_session_user(session: Session, user_id: uuid.UUID | None) -> None:
-    """Bind a session to a user. Takes effect from the next transaction."""
+    """Bind a session to a user. Takes effect from the next transaction.
+
+    In requests, app.deps.get_user_db is the one place this is called; the
+    daily job calls it per user.
+    """
     if session.in_transaction():
         raise RuntimeError("Set the RLS user before the session starts a transaction")
     session.info[RLS_USER_KEY] = user_id

@@ -68,7 +68,7 @@ class Settings(BaseSettings):
         return self.environment == "production"
 
     @model_validator(mode="after")
-    def _production_needs_real_secrets(self) -> "Settings":
+    def _production_needs_real_secrets(self) -> Settings:
         if self.is_production:
             secret = self.secret_key.get_secret_value()
             if len(secret) < 32 or secret.lower() in WEAK_SECRETS:

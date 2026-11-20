@@ -27,14 +27,14 @@ One FastAPI service serves the API and the built React frontend, alongside one P
 
 | Layer | Choice |
 | --- | --- |
-| API | Python 3.12, FastAPI, Pydantic v2 |
+| API | Python 3.14, FastAPI, Pydantic v2 |
 | Database | PostgreSQL, SQLAlchemy 2, Alembic, row-level security |
 | Frontend | React + TypeScript (Vite), built into `app/static` |
 | Email | Resend (HTTPS API, 5 s timeout), behind a daily send budget |
 
 ## Run it locally
 
-Needs Python 3.12+, Node 22 and Docker (or any PostgreSQL 16+).
+Needs Python 3.14+, Node 22 and Docker (or any PostgreSQL 16+).
 
 ```bash
 python -m venv .venv && . .venv/bin/activate

@@ -37,7 +37,7 @@ def verify_password(password_hash: str | None, password: str) -> bool:
 
     try:
         return _bounded(check) and bool(password_hash)
-    except (VerifyMismatchError, VerificationError, InvalidHashError):
+    except VerifyMismatchError, VerificationError, InvalidHashError:
         return False
 
 

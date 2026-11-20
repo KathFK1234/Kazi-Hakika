@@ -9,7 +9,7 @@ COPY web/ ./
 RUN npm run build
 
 # 2) Python runtime: one image for the web service and the daily cron job.
-FROM python:3.12-slim-trixie
+FROM python:3.14-slim-trixie
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \

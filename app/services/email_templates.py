@@ -14,7 +14,7 @@ class Brand:
     base_url: str
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> "Brand":
+    def from_settings(cls, settings: Settings) -> Brand:
         return cls(settings.app_name, settings.app_tagline, settings.base_url.rstrip("/"))
 
 

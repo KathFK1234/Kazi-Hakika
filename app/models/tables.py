@@ -71,7 +71,7 @@ class Application(UUIDPk, Timestamps, Base):
     salary_note: Mapped[str | None] = mapped_column(String(200))
     notes: Mapped[str] = mapped_column(Text, server_default="", default="")
 
-    events: Mapped[list["StageEvent"]] = relationship(
+    events: Mapped[list[StageEvent]] = relationship(
         back_populates="application",
         foreign_keys="[StageEvent.application_id, StageEvent.user_id]",
         order_by="StageEvent.at",

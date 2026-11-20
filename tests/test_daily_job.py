@@ -173,3 +173,28 @@ def test_main_exits_1_on_database_failure_without_leaking_details(
         assert daily.main() == 1
     assert "daily job failed" in caplog.text
     assert "s3cret-pw" not in caplog.text
+
+
+def test_deletes_only_old_unconfirmed_empty_accounts(
+    owner_engine: Engine,
+    app_sessions: sessionmaker[Session],
+    settings: Settings,
+    mailer: tuple[Mailer, list[EmailMessage]],
+) -> None:
+    old = "now() - interval '31 days'"
+    stale = make_user(owner_engine, "stale")
+    in_use = make_user(owner_engine, "inuse")
+    make_application(owner_engine, in_use, "keeps the account")
+    confirmed = _verified_user(owner_engine, "confirmed")
+    recent = make_user(owner_engine, "recent")
+    with owner_engine.begin() as c:
+        c.execute(
+            text(f"UPDATE users SET created_at = {old} WHERE id IN (:a, :b, :c)"),  # noqa: S608
+            {"a": stale, "b": in_use, "c": confirmed},
+        )
+    counts = run(app_sessions, mailer[0], settings)
+    assert counts.unconfirmed_accounts_deleted == 1
+    with owner_engine.connect() as c:
+        left = set(c.execute(text("SELECT handle FROM users")).scalars())
+    assert left == {"inuse", "confirmed", "recent"}
+    assert recent  # created now, so it stays

@@ -4,14 +4,15 @@
 
 Sends each opted-in, verified user at most one digest of deadlines in the
 next 3 days (oldest sign-ups first if the email budget runs short), clears
-expired sessions and tokens, logs counts and exits. No loops, no scheduler.
+expired sessions and tokens, deletes accounts still unconfirmed and empty
+30 days after sign-up, logs counts and exits. No loops, no scheduler.
 """
 
 import logging
 import sys
 import time
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import DBAPIError
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import Settings, get_settings
 from app.db import make_engine, set_session_user
 from app.errors import describe_db_error
-from app.models import AuthToken, User, UserSession
+from app.models import Application, AuthToken, User, UserSession
 from app.services.digest import digest_message, today_eat, upcoming
 from app.services.email import Mailer, resend_transport
 from app.services.email_templates import Brand
@@ -30,6 +31,8 @@ log = logging.getLogger("app.jobs.daily")
 MAX_USERS_SCANNED = 10_000
 MAX_CONSECUTIVE_FAILURES = 3
 MAX_RUNTIME_SECONDS = 600
+# Unconfirmed accounts with nothing tracked are removed after this long.
+UNCONFIRMED_EMPTY_ACCOUNT_DAYS = 30
 
 
 @dataclass
@@ -41,6 +44,7 @@ class Counts:
     skipped_budget: int = 0
     sessions_purged: int = 0
     tokens_purged: int = 0
+    unconfirmed_accounts_deleted: int = 0
 
 
 def send_digests(
@@ -120,10 +124,37 @@ def purge_expired(sessions: sessionmaker[Session], counts: Counts) -> None:
         ).rowcount  # type: ignore[attr-defined]
 
 
+def purge_unconfirmed_empty_accounts(sessions: sessionmaker[Session], counts: Counts) -> None:
+    """Delete accounts never confirmed and never used, 30 days after sign-up.
+
+    The job's session has no RLS identity, so it can't see anyone's
+    applications; "has none" is checked per user with an RLS-bound session.
+    """
+    cutoff = datetime.now(UTC) - timedelta(days=UNCONFIRMED_EMPTY_ACCOUNT_DAYS)
+    with sessions() as db:
+        stale = db.scalars(
+            select(User.id).where(User.email_verified_at.is_(None), User.created_at < cutoff)
+        ).all()
+    for user_id in stale:
+        with sessions() as db:
+            set_session_user(db, user_id)
+            has_apps = db.scalar(
+                select(Application.id).where(Application.user_id == user_id).limit(1)
+            )
+        if has_apps is not None:
+            continue
+        with sessions() as db, db.begin():
+            deleted = db.execute(
+                delete(User).where(User.id == user_id, User.email_verified_at.is_(None))
+            ).rowcount  # type: ignore[attr-defined]
+        counts.unconfirmed_accounts_deleted += deleted
+
+
 def run(sessions: sessionmaker[Session], mailer: Mailer, settings: Settings) -> Counts:
     today = today_eat()
     counts = send_digests(sessions, mailer, Brand.from_settings(settings), today)
     purge_expired(sessions, counts)
+    purge_unconfirmed_empty_accounts(sessions, counts)
     log.info("daily job done for %s: %s", today.isoformat(), counts)
     return counts
 

@@ -31,6 +31,7 @@ export function PrivacyPage() {
       <h2>How long we keep it</h2>
       <ul>
         <li>Your account and applications stay until you delete them.</li>
+        <li>An account whose email is never confirmed and which never tracks a role is deleted 30 days after sign-up.</li>
         <li>Sign-ins expire after 14 days; confirmation and reset links after 24 hours and 1 hour.</li>
       </ul>
 

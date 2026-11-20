@@ -19,9 +19,10 @@ os.environ.setdefault("ENVIRONMENT", "test")
 from app.config import Settings
 from app.db import make_engine
 from app.main import create_app
+from app.services.email import EmailMessage, Mailer
 
 APP_ROLE_PASSWORD = "kazi_app_test_only"
-TABLES = ("stage_events", "applications", "email_budget", "users")
+TABLES = ("stage_events", "applications", "sessions", "auth_tokens", "email_budget", "users")
 
 
 def _admin_url() -> str | None:
@@ -91,7 +92,15 @@ def app_sessions(app_engine: Engine, owner_engine: Engine) -> Iterator[sessionma
 
 
 @pytest.fixture
-def client(settings: Settings, app_sessions: sessionmaker[Session]) -> TestClient:
+def outbox() -> list[EmailMessage]:
+    return []
+
+
+@pytest.fixture
+def client(
+    settings: Settings, app_sessions: sessionmaker[Session], outbox: list[EmailMessage]
+) -> TestClient:
     app = create_app(settings)
     app.state.sessionmaker = app_sessions
-    return TestClient(app)
+    app.state.mailer = Mailer(app_sessions, settings, outbox.append)
+    return TestClient(app, base_url="http://localhost:8000")

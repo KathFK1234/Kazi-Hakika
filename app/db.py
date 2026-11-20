@@ -1,7 +1,6 @@
 """Engine, sessions and the per-transaction RLS identity (app.user_id)."""
 
 import uuid
-from collections.abc import Iterator
 from functools import lru_cache
 from typing import Any
 
@@ -58,11 +57,3 @@ def set_session_user(session: Session, user_id: uuid.UUID | None) -> None:
     if session.in_transaction():
         raise RuntimeError("Set the RLS user before the session starts a transaction")
     session.info[RLS_USER_KEY] = user_id
-
-
-def get_db(request: Request) -> Iterator[Session]:
-    """A session bound to the signed-in user (request.state.user_id), if any."""
-    factory = get_sessionmaker(request)
-    with factory() as session:
-        set_session_user(session, getattr(request.state, "user_id", None))
-        yield session

@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     # Sessions.
     session_days: int = Field(default=14, ge=1, le=90)
 
+    # How many reverse proxies sit in front of the app and append to
+    # X-Forwarded-For (Railway's edge: 1). 0 trusts no forwarded header.
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
+
+    @property
+    def session_cookie_name(self) -> str:
+        # __Host- pins the cookie to this exact host, https only, path /.
+        return "__Host-kh_session" if self.is_production else "kh_session"
+
     @field_validator("database_url", "migrations_database_url")
     @classmethod
     def _use_psycopg_driver(cls, value: str | None) -> str | None:

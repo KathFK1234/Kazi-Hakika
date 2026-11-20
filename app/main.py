@@ -3,14 +3,20 @@
 import html
 import logging
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import Settings, get_settings
-from app.middleware import BodySizeLimitMiddleware, SecurityHeadersMiddleware
-from app.routers import health, meta
+from app.middleware import (
+    BodySizeLimitMiddleware,
+    SameOriginMiddleware,
+    SecurityHeadersMiddleware,
+)
+from app.routers import auth, health, meta
+from app.services.ratelimit import RateLimiter
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -39,16 +45,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url=None if settings.is_production else "/api/openapi.json",
     )
     app.state.settings = settings
+    app.state.limiter = RateLimiter()
 
     app.include_router(health.router)
     app.include_router(meta.router)
+    app.include_router(auth.router)
 
     _mount_frontend(app, settings)
 
     # Outermost last: the size cap runs before anything reads the body.
+    app.add_middleware(SameOriginMiddleware, allowed_origins=_allowed_origins(settings))
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production)
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_body_bytes)
     return app
+
+
+def _allowed_origins(settings: Settings) -> frozenset[str]:
+    base = urlsplit(settings.base_url)
+    origins = {f"{base.scheme}://{base.netloc}"}
+    if not settings.is_production:
+        # The Vite dev server proxies /api from here.
+        origins |= {"http://localhost:5173", "http://127.0.0.1:5173"}
+    return frozenset(origins)
 
 
 def _mount_frontend(app: FastAPI, settings: Settings) -> None:

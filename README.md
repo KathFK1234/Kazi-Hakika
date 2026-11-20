@@ -57,6 +57,15 @@ Open http://localhost:8000. For frontend work, run `npm run dev` in `web/` (it p
 
 Each user's rows are protected twice: every query filters by the signed-in user, and Postgres row-level security (`FORCE`d, so it applies to the table owner too) only shows rows whose `user_id` matches `app.user_id`. That setting is made transaction-local at the start of every transaction, so a pooled connection never carries one user's identity into another request. The app connects as `kazi_app`, which is not a superuser, cannot bypass RLS and owns no tables.
 
+### Accounts and sessions
+
+- Passwords are hashed with argon2id (19 MiB, OWASP's minimum profile, sized for a 512 MB service).
+- Sessions are random 256-bit tokens in an HTTP-only, SameSite=Lax cookie (Secure and `__Host-` prefixed in production). The database stores only their SHA-256.
+- Every state-changing request needs the session's CSRF token in `X-CSRF-Token`, must be JSON, and is refused if the browser says it came from another origin.
+- Sign-up and password reset answer the same way whether or not an email has an account. Unknown emails take the same hashing time on login.
+- Rate limits: login 5 a minute per IP (and 10 an hour per email), sign-up 5 an hour per IP, reset 3 an hour per email.
+- Verification (24 h) and reset (1 h) links are single-use, stored hashed, and carry the token in the URL fragment so it never reaches server logs. A reset signs you out everywhere.
+
 ## Checks
 
 ```bash

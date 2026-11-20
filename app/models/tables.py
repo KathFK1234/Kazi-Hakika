@@ -117,4 +117,32 @@ class EmailBudget(Timestamps, Base):
     sent_count: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
 
 
-__all__ = ["NOTES_MAX", "SOURCES", "STAGES", "Application", "EmailBudget", "StageEvent", "User"]
+TOKEN_PURPOSES = ("verify_email", "reset_password")
+
+
+class UserSession(UUIDPk, Timestamps, Base):
+    """A signed-in browser. Only a SHA-256 of the cookie value is stored."""
+
+    __tablename__ = "sessions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    csrf_token: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class AuthToken(UUIDPk, Timestamps, Base):
+    """One-time email verification and password reset tokens (hashed)."""
+
+    __tablename__ = "auth_tokens"
+    __table_args__ = (CheckConstraint(_in("purpose", TOKEN_PURPOSES), name="purpose_valid"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    purpose: Mapped[str] = mapped_column(String(20))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

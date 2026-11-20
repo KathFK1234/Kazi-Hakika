@@ -50,6 +50,38 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
+class SameOriginMiddleware:
+    """CSRF defence in depth for /api: state-changing requests must be JSON
+    (a cross-site form can't send that without a CORS preflight, and CORS is
+    closed) and, when the browser says where they came from, from our origin."""
+
+    UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+    def __init__(self, app: ASGIApp, *, allowed_origins: frozenset[str]) -> None:
+        self.app = app
+        self.allowed = allowed_origins
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] == "http"
+            and scope["method"] in self.UNSAFE
+            and scope["path"].startswith("/api/")
+        ):
+            headers = {k.lower(): v for k, v in scope.get("headers", [])}
+            origin = headers.get(b"origin")
+            if origin is not None and origin.decode("latin-1") not in self.allowed:
+                await _reject(send, 403, b'{"detail":"Cross-origin request refused"}')
+                return
+            has_body = headers.get(b"content-length", b"0") != b"0" or (
+                b"transfer-encoding" in headers
+            )
+            content_type = headers.get(b"content-type", b"").split(b";")[0].strip()
+            if has_body and content_type != b"application/json":
+                await _reject(send, 415, b'{"detail":"Send JSON (application/json)"}')
+                return
+        await self.app(scope, receive, send)
+
+
 class BodySizeLimitMiddleware:
     """Rejects bodies over the cap, whether or not Content-Length is honest."""
 

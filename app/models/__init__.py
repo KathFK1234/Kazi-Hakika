@@ -1,4 +1,25 @@
 from app.models.base import Base
-from app.models.tables import STAGES, Application, EmailBudget, StageEvent, User
+from app.models.tables import (
+    NOTES_MAX,
+    STAGES,
+    TOKEN_PURPOSES,
+    Application,
+    AuthToken,
+    EmailBudget,
+    StageEvent,
+    User,
+    UserSession,
+)
 
-__all__ = ["STAGES", "Application", "Base", "EmailBudget", "StageEvent", "User"]
+__all__ = [
+    "NOTES_MAX",
+    "STAGES",
+    "TOKEN_PURPOSES",
+    "Application",
+    "AuthToken",
+    "Base",
+    "EmailBudget",
+    "StageEvent",
+    "User",
+    "UserSession",
+]

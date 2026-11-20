@@ -2,6 +2,7 @@ import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { api, STAGE_LABELS, STAGES, type ApplicationDetail, type ApplicationInput, type Stage } from '../api'
 import { Field, FormError } from '../components/Field'
+import { JobLink } from '../components/JobLink'
 import { errorMessage } from '../errors'
 
 const EMPTY: ApplicationInput = {
@@ -101,6 +102,7 @@ export function ApplicationPage() {
         <Link to="/">← My applications</Link>
       </p>
       <h1>{isNew ? 'Add a role' : 'Edit role'}</h1>
+      {detail && <JobLink url={detail.job_url} />}
       <form onSubmit={save} noValidate>
         <Field label="Role title" required maxLength={200} value={form.role_title} onChange={(e) => set('role_title', e.target.value)} />
         <Field label="Company" required maxLength={200} value={form.company_name} onChange={(e) => set('company_name', e.target.value)} />

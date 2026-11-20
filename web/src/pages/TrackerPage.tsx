@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react
 import { Link } from 'react-router'
 import { api, listAll, STAGE_LABELS, STAGES, type Application, type Stage } from '../api'
 import { FormError } from '../components/Field'
+import { JobLink } from '../components/JobLink'
 import { errorMessage } from '../errors'
 import { daysUntil, dueLabel, dueSoon, formatDate } from '../dates'
 
@@ -181,6 +182,7 @@ function Board({
                 </Link>
                 <span className="card-company">{a.company_name}</span>
                 {a.deadline && <span className="due">{dueLabel(a.deadline)}</span>}
+                <JobLink url={a.job_url} />
                 <label className="move">
                   <span className="visually-hidden">Move {a.role_title} to</span>
                   <select value={a.stage} onChange={(e) => onMove(a.id, e.target.value as Stage, a.stage)}>
@@ -211,6 +213,7 @@ function ListView({ apps }: { apps: Application[] }) {
           <span className="card-company">{a.company_name}</span>
           <span className={`stage stage-${a.stage}`}>{STAGE_LABELS[a.stage]}</span>
           <span className="due">{a.deadline ? `${formatDate(a.deadline)} · ${dueLabel(a.deadline)}` : 'No deadline'}</span>
+          <JobLink url={a.job_url} />
         </li>
       ))}
     </ul>

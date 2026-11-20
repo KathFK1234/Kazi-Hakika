@@ -409,6 +409,11 @@ input[type='checkbox'] {
   overflow-wrap: anywhere;
 }
 
+.job-link {
+  font-size: 0.875rem;
+  justify-self: start;
+}
+
 .move select {
   margin-top: 0.35rem;
   min-height: 36px;
@@ -487,7 +492,7 @@ input[type='checkbox'] {
   }
 
   .row {
-    grid-template-columns: 2fr 1.5fr auto 1.5fr;
+    grid-template-columns: 2fr 1.5fr auto 1.5fr auto;
     align-items: center;
     gap: 1rem;
   }

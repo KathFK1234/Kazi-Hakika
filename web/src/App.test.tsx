@@ -153,6 +153,23 @@ describe('tracker', () => {
     expect(within(screen.getByRole('region', { name: /Interview/ })).getByText('SRE')).toBeInTheDocument()
   })
 
+  it('links to the job ad safely, and never to a non-http URL', async () => {
+    mockApi({
+      'GET /api/meta': META,
+      'GET /api/auth/me': ME,
+      'GET /api/applications': page([
+        app({ id: 'a1', role_title: 'Data Analyst', job_url: 'https://jobs.example.com/1' }),
+        app({ id: 'a2', role_title: 'SRE', job_url: 'javascript:alert(1)' }),
+      ]),
+    })
+    renderAt('/')
+    const links = await screen.findAllByRole('link', { name: /Open job ad/ })
+    expect(links).toHaveLength(1)
+    expect(links[0]).toHaveAttribute('href', 'https://jobs.example.com/1')
+    expect(links[0]).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(links[0]).toHaveAttribute('target', '_blank')
+  })
+
   it('switches to the list view', async () => {
     mockApi({
       'GET /api/meta': META,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router'
 import { api, listAll, STAGE_LABELS, STAGES, type Application, type Stage } from '../api'
 import { FormError } from '../components/Field'
@@ -45,17 +45,39 @@ export function TrackerPage() {
     }
   }, [])
 
-  const moveTo = useCallback(async (id: string, stage: Stage, from: Stage) => {
+  const [announcement, setAnnouncement] = useState('')
+  // The card's menu to refocus once it re-renders in its new column.
+  const refocus = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!refocus.current) return
+    document.getElementById(`move-${refocus.current}`)?.focus()
+    refocus.current = null
+  }, [apps])
+
+  const moveTo = useCallback(async (id: string, stage: Stage, from: Stage, byKeyboard = false) => {
+    let title = ''
     const setStage = (target: Stage) =>
-      setApps((list) => list?.map((a) => (a.id === id ? { ...a, stage: target } : a)) ?? null)
+      setApps(
+        (list) =>
+          list?.map((a) => {
+            if (a.id !== id) return a
+            title = a.role_title
+            return { ...a, stage: target }
+          }) ?? null,
+      )
+    if (byKeyboard) refocus.current = id
     setStage(stage)
     try {
       const updated = await api.updateApplication(id, { stage })
       setApps((list) => list?.map((a) => (a.id === id ? updated : a)) ?? null)
+      setAnnouncement(`Moved ${updated.role_title || title} to ${STAGE_LABELS[stage]}.`)
     } catch (e) {
       // Put back only this card; other moves made meanwhile stay.
+      if (byKeyboard) refocus.current = id
       setStage(from)
       setError(errorMessage(e))
+      setAnnouncement(`Couldn't move ${title}. It's back in ${STAGE_LABELS[from]}.`)
     }
   }, [])
 
@@ -87,6 +109,9 @@ export function TrackerPage() {
         </div>
       </div>
       <FormError message={error} />
+      <p className="visually-hidden" role="status" aria-live="polite">
+        {announcement}
+      </p>
       <DuePanel apps={apps} />
       {apps.length === 0 ? (
         <div className="empty">
@@ -132,7 +157,7 @@ function Board({
   onMove,
 }: {
   apps: Application[]
-  onMove: (id: string, stage: Stage, from: Stage) => void
+  onMove: (id: string, stage: Stage, from: Stage, byKeyboard?: boolean) => void
 }) {
   const [over, setOver] = useState<Stage | null>(null)
   const byStage = useMemo(() => {
@@ -185,7 +210,11 @@ function Board({
                 <JobLink url={a.job_url} />
                 <label className="move">
                   <span className="visually-hidden">Move {a.role_title} to</span>
-                  <select value={a.stage} onChange={(e) => onMove(a.id, e.target.value as Stage, a.stage)}>
+                  <select
+                    id={`move-${a.id}`}
+                    value={a.stage}
+                    onChange={(e) => onMove(a.id, e.target.value as Stage, a.stage, true)}
+                  >
                     {STAGES.map((s) => (
                       <option key={s} value={s}>
                         {STAGE_LABELS[s]}

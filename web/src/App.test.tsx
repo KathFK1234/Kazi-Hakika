@@ -102,6 +102,9 @@ describe('tracker', () => {
     })
     const patch = calls.find((c) => c.method === 'PATCH')
     expect(patch?.body).toEqual({ stage: 'applied' })
+    // Keyboard users stay on the card they moved, and hear where it went.
+    await waitFor(() => expect(screen.getByLabelText('Move Data Analyst to')).toHaveFocus())
+    expect(await screen.findByText('Moved Data Analyst to Applied.')).toBeInTheDocument()
     expect(patch?.headers['X-CSRF-Token']).toBe('csrf-123')
   })
 

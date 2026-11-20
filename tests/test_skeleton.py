@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
@@ -31,11 +32,13 @@ def test_hsts_only_in_production() -> None:
     assert "max-age=" in client.get("/health").headers["strict-transport-security"]
 
 
-def test_production_rejects_default_secret() -> None:
-    import pytest
-
+@pytest.mark.parametrize("secret", [None, "change-me", "short-but-random-1234"])
+def test_production_rejects_weak_secret(secret: str | None) -> None:
+    values: dict[str, object] = {"environment": "production", "base_url": "https://kazi.example"}
+    if secret is not None:
+        values["secret_key"] = secret
     with pytest.raises(ValueError, match="SECRET_KEY"):
-        make_settings(environment="production", base_url="https://kazi.example")
+        make_settings(**values)
 
 
 def test_body_over_64kb_rejected() -> None:

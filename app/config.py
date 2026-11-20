@@ -6,6 +6,8 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+WEAK_SECRETS = frozenset({"", "dev-only-not-secret", "change-me", "changeme", "secret"})
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -66,8 +68,11 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _production_needs_real_secrets(self) -> "Settings":
         if self.is_production:
-            if self.secret_key.get_secret_value() in ("", "dev-only-not-secret"):
-                raise ValueError("SECRET_KEY must be set in production")
+            secret = self.secret_key.get_secret_value()
+            if len(secret) < 32 or secret.lower() in WEAK_SECRETS:
+                raise ValueError(
+                    "SECRET_KEY must be a random string of 32+ characters in production"
+                )
             if not self.base_url.startswith("https://"):
                 raise ValueError("BASE_URL must be https in production")
         return self

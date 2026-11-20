@@ -36,6 +36,11 @@ def test_export_contains_everything_the_user_owns(
     data = json.loads(r.content)
     assert data["account"]["handle"] == "brian"
     assert "password_hash" not in json.dumps(data)
+    assert len(data["sign_ins"]) == 1
+    assert set(data["sign_ins"][0]) == {"created_at", "expires_at"}
+    cookie = me.cookies.get("kh_session")
+    assert cookie and cookie not in r.text
+    assert "hash" not in r.text
     assert {x["role_title"] for x in data["applications"]} == {"Data Analyst", "SRE"}
     analyst = next(x for x in data["applications"] if x["role_title"] == "Data Analyst")
     assert analyst["notes"] == "café ✓"

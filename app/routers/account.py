@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from app.deps import AuthDep, SettingsDep, SystemDb, UserDb, enforce
-from app.models import Application, User
+from app.models import Application, User, UserSession
 from app.services.digest import today_eat, upcoming
 from app.services.ratelimit import Limit
 from app.services.sessions import clear_session_cookie
@@ -55,6 +55,11 @@ def build_export(system_db: SystemDb, user_db: UserDb, auth: AuthDep) -> dict[st
         .options(selectinload(Application.events))
         .order_by(Application.created_at)
     ).all()
+    sign_ins = system_db.execute(
+        select(UserSession.created_at, UserSession.expires_at)
+        .where(UserSession.user_id == auth.user_id)
+        .order_by(UserSession.created_at)
+    ).all()
     return {
         "format": "kazi-hakika-export/1",
         "exported_at": datetime.now(UTC).isoformat(),
@@ -65,6 +70,11 @@ def build_export(system_db: SystemDb, user_db: UserDb, auth: AuthDep) -> dict[st
             "email_verified_at": _iso(user.email_verified_at),
             "reminder_opt_in": user.reminder_opt_in,
         },
+        # When each current sign-in started and ends (no tokens).
+        "sign_ins": [
+            {"created_at": row.created_at.isoformat(), "expires_at": row.expires_at.isoformat()}
+            for row in sign_ins
+        ],
         "applications": [
             {
                 "id": str(a.id),

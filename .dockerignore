@@ -17,3 +17,9 @@ CLAUDE.md
 context.md
 docker-compose.yml
 *.egg-info
+*.dump
+*.sql
+*.sql.gz
+*.pem
+*.key
+*.p12

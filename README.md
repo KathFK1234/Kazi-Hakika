@@ -117,7 +117,7 @@ Until a domain is verified in Resend, `EMAIL_FROM` can only be Resend's test sen
 Users' trackers live only in Postgres, so:
 
 - Turn on backups for the Postgres volume in Railway (service → Backups) if the plan offers them, and note the schedule and how many are kept. If it doesn't, take the manual dump below at least weekly.
-- Before any migration that changes or drops data, take a dump by hand: `railway connect Postgres`, or from your machine `pg_dump --format=custom "$DATABASE_PUBLIC_URL" > kazi-$(date +%F).dump`. Keep dumps somewhere private: they hold emails and notes.
+- Before any migration that changes or drops data, take a dump by hand: `railway connect Postgres`, or from your machine `pg_dump --format=custom "$DATABASE_PUBLIC_URL" > ~/kazi-backups/kazi-$(date +%F).dump`. Keep dumps outside the repo and somewhere private: they hold emails and notes (`*.dump` is git-ignored as a safety net).
 - Restore into an empty database with `pg_restore --no-owner --dbname "$TARGET_URL" kazi-YYYY-MM-DD.dump`, then run `alembic upgrade head` and give `kazi_app` its password again.
 - Users can always download their own data from Settings.
 

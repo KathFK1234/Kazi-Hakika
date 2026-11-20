@@ -31,3 +31,11 @@ web/coverage/
 .vscode/
 .idea/
 .DS_Store
+
+# Database dumps (hold users' personal data) and key material: never commit
+*.dump
+*.sql
+*.sql.gz
+*.pem
+*.key
+*.p12

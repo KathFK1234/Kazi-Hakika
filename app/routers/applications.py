@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.deps import AuthDep, UserDb
 from app.models import NOTES_MAX, Application, StageEvent
+from app.services.digest import today_eat
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -128,8 +129,7 @@ class ApplicationPage(BaseModel):
 
 
 def _today() -> date:
-    # The first users are in Kenya (EAT, UTC+3, no daylight saving).
-    return (datetime.now(UTC) + timedelta(hours=3)).date()
+    return today_eat()
 
 
 def _record_stage(db: UserDb, app: Application, user_id: uuid.UUID, from_stage: str | None) -> None:

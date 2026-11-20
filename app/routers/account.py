@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.deps import AuthDep, SettingsDep, SystemDb, UserDb, enforce
 from app.models import Application, User
 from app.routers.auth import clear_session_cookie
+from app.services.digest import today_eat, upcoming
 from app.services.ratelimit import Limit
 
 log = logging.getLogger(__name__)
@@ -131,3 +132,33 @@ def delete_account(
     clear_session_cookie(response, settings)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
+
+
+@router.get("/digest-preview")
+def digest_preview(auth: AuthDep, db: SystemDb, user_db: UserDb) -> dict[str, Any]:
+    """What tomorrow morning's reminder would list if it ran now."""
+    user = db.get(User, auth.user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Please sign in.")
+    today = today_eat()
+    items = upcoming(user_db, auth.user_id, today)
+    reasons = []
+    if not user.reminder_opt_in:
+        reasons.append("Reminders are turned off in Settings.")
+    if user.email_verified_at is None:
+        reasons.append("Confirm your email address to get reminders.")
+    if not items:
+        reasons.append("Nothing is due in the next 3 days.")
+    return {
+        "will_send": not reasons,
+        "reasons": reasons,
+        "items": [
+            {
+                "role_title": i.role_title,
+                "company_name": i.company_name,
+                "stage": i.stage,
+                "deadline": i.deadline.isoformat(),
+            }
+            for i in items
+        ],
+    }

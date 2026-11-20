@@ -40,6 +40,8 @@ class User(UUIDPk, Timestamps, Base):
     handle: Mapped[str] = mapped_column(String(30), unique=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reminder_opt_in: Mapped[bool] = mapped_column(Boolean, server_default=true(), default=True)
+    # The daily job sends at most one digest per user per day.
+    last_digest_on: Mapped[date | None] = mapped_column(Date)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

@@ -66,6 +66,12 @@ Each user's rows are protected twice: every query filters by the signed-in user,
 - Rate limits: login 5 a minute per IP (and 10 an hour per email), sign-up 5 an hour per IP, reset 3 an hour per email.
 - Verification (24 h) and reset (1 h) links are single-use, stored hashed, and carry the token in the URL fragment so it never reaches server logs. A reset signs you out everywhere.
 
+### Daily reminders
+
+`python -m app.jobs.daily` runs once a day as a Railway cron service (`0 3 * * *`, which is 06:00 in Nairobi). It sends each opted-in user with a confirmed email one digest of deadlines in the next 3 days, oldest sign-ups first if the email budget runs short. Then it clears expired sessions and tokens, logs counts and exits. A user is marked before their email goes out, so a re-run never sends a second digest the same day. A failed send is unmarked and tried again next run. There is no scheduler or loop inside the web service.
+
+Signed-in users can see what their next digest would hold at `/api/account/digest-preview`.
+
 ## Checks
 
 ```bash

@@ -86,6 +86,23 @@ def test_signup_validation(client: TestClient, payload: dict[str, object], statu
     assert client.post("/api/auth/signup", json=payload).status_code == status
 
 
+def test_taken_handle_does_not_reveal_whether_email_exists(
+    client: TestClient, outbox: list[EmailMessage]
+) -> None:
+    signup(client, outbox, "known")
+    signup(client, outbox, "takenhandle")
+    registered = client.post(
+        "/api/auth/signup",
+        json={"email": "known@example.com", "password": PASSWORD, "handle": "takenhandle"},
+    )
+    unregistered = client.post(
+        "/api/auth/signup",
+        json={"email": "fresh@example.com", "password": PASSWORD, "handle": "takenhandle"},
+    )
+    assert registered.status_code == unregistered.status_code == 409
+    assert registered.json() == unregistered.json()
+
+
 def test_taken_handle_is_409(client: TestClient, outbox: list[EmailMessage]) -> None:
     signup(client, outbox, "njeri")
     r = client.post(

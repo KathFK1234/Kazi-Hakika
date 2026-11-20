@@ -200,6 +200,11 @@ def signup(
     enforce(request, SIGNUP_PER_IP, client_ip(request))
     brand = email_templates.Brand.from_settings(settings)
 
+    # Checked first, for everyone: the answer depends only on the handle, so
+    # it can't reveal whether the email has an account.
+    if db.scalar(select(User.id).where(User.handle == body.handle)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="That handle is taken.")
+
     may_email = get_limiter(request).hit(SIGNUP_EMAIL_PER_ADDRESS, body.email)
 
     existing = db.scalar(select(User).where(User.email == body.email))
@@ -209,9 +214,6 @@ def signup(
         if may_email:
             mailer.send(email_templates.already_registered(brand, body.email))
         return CHECK_EMAIL
-
-    if db.scalar(select(User.id).where(User.handle == body.handle)) is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="That handle is taken.")
 
     user = User(email=body.email, handle=body.handle, password_hash=hash_password(body.password))
     db.add(user)

@@ -33,7 +33,11 @@ updates:
       actions:
         patterns: ["*"]
 
+  # Weekly: the images are pinned by digest, so base-image security
+  # patches only arrive through these PRs.
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
+      day: monday
+      timezone: Africa/Nairobi

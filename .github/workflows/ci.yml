@@ -50,6 +50,12 @@ jobs:
           ruff format --check .
       - name: Type check
         run: mypy app tests
+      - name: Migrations match the models
+        env:
+          MIGRATIONS_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+        run: |
+          alembic upgrade head
+          alembic check
       - name: Tests
         run: pytest -q
       - name: Dependency audit

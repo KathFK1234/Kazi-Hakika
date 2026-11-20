@@ -39,6 +39,10 @@ class SecurityHeadersMiddleware:
                     (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
                     (b"cross-origin-opener-policy", b"same-origin"),
                 ]
+                if scope["path"].startswith("/api/"):
+                    # Private data must not linger in browser or shared caches
+                    # (cybercafés, family phones), including back/forward.
+                    extra.append((b"cache-control", b"no-store"))
                 if self.hsts:
                     extra.append(
                         (b"strict-transport-security", b"max-age=63072000; includeSubDomains")

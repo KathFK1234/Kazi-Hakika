@@ -174,3 +174,10 @@ def test_csrf_needed_for_writes(me: TestClient) -> None:
     r = me.post("/api/applications", json={"role_title": "a", "company_name": "b"})
     assert r.status_code == 403
     assert me.get("/api/applications").status_code == 200
+
+
+def test_api_responses_are_never_cached(me: TestClient) -> None:
+    app = _add(me)
+    for path in ("/api/applications", f"/api/applications/{app['id']}", "/api/meta"):
+        assert me.get(path).headers["cache-control"] == "no-store"
+    assert me.get("/api/nope").headers["cache-control"] == "no-store"

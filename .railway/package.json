@@ -1,0 +1,9 @@
+{
+  "name": "kazi-hakika-railway",
+  "private": true,
+  "type": "module",
+  "description": "Types for .railway/railway.ts (Railway infrastructure as code)",
+  "devDependencies": {
+    "railway": "3.17.0"
+  }
+}

@@ -90,6 +90,16 @@ Dependabot raises security fixes as soon as an advisory lands, plus weekly updat
 
 ## Deploy (Railway)
 
+Live at https://kazi-hakika.up.railway.app (Railway project `kazi-hakika`, region europe-west4, Amsterdam).
+
+The services, their build, region, limits, cron schedule and domain are defined in code in `.railway/railway.ts` (Railway's config files, `railway.toml`/`railway.json`, are no longer read after 2026-12-01). Variables are unmanaged: the file never sets or deletes them, so secrets stay out of the repo. To change the setup, edit the file and run, from the repo root with Node 22.18+ built with TypeScript support (e.g. the official Node 24 build):
+
+```bash
+(cd .railway && npm ci)
+railway config plan     # read every line; stop if it deletes anything
+railway config apply
+```
+
 Two services and one database, all built from the same `Dockerfile`:
 
 | Service | Start command | Settings |

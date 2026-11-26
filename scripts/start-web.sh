@@ -4,6 +4,8 @@ set -eu
 
 if [ -n "${MIGRATIONS_DATABASE_URL:-}" ]; then
     alembic upgrade head
+    # kazi_app's login password comes from KAZI_APP_DB_PASSWORD.
+    python -m app.app_role
 fi
 # The app process never sees the owner credentials.
 unset MIGRATIONS_DATABASE_URL

@@ -22,6 +22,10 @@ const WATCH = [
   "migrations/**",
   "scripts/**",
   "web/**",
+  // Vitest files never reach the image.
+  "!web/**/*.test.ts",
+  "!web/**/*.test.tsx",
+  "!web/src/test/**",
 ];
 
 // GitHub checks can't gate deploys while Actions is billing-locked; every

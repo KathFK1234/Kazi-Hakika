@@ -281,5 +281,13 @@ describe('account', () => {
     mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': ME })
     renderAt('/no/such/page')
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Go to your applications' })).toHaveAttribute('href', '/')
+  })
+
+  it('points signed-out visitors on a not-found page to the home page', async () => {
+    mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': signedOut })
+    renderAt('/no/such/page')
+    expect(await screen.findByRole('link', { name: 'Go to the home page' })).toHaveAttribute('href', '/')
+    expect(screen.queryByText('Go to your applications')).not.toBeInTheDocument()
   })
 })

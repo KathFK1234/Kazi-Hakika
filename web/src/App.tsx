@@ -107,10 +107,14 @@ function UnverifiedBanner() {
 
 function NotFound() {
   useTitle('Page not found')
+  const { me } = useAuth()
   return (
     <section>
       <h1>Page not found</h1>
-      <Link to="/">Go to your applications</Link>
+      <p>That link may be old or mistyped.</p>
+      <Link className="button primary" to="/">
+        {me ? 'Go to your applications' : 'Go to the home page'}
+      </Link>
     </section>
   )
 }

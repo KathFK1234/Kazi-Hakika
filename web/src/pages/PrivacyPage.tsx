@@ -23,6 +23,10 @@ export function PrivacyPage() {
         <li>Your email address, a password hash (never the password itself) and the public handle you choose.</li>
         <li>The roles you track: title, company, link, stage, dates, salary note and your notes, plus when each stage changed.</li>
         <li>Whether your email is confirmed and whether you want reminder emails.</li>
+        <li>
+          In your browser: one cookie that keeps you signed in (removed when you sign out or after 14 days) and, only if
+          you pick one, your light or dark theme. Nothing is used for tracking.
+        </li>
       </ul>
 
       <h2>What we don't store</h2>

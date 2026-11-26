@@ -220,6 +220,7 @@ describe('account', () => {
     expect(screen.getByText(/run by Katheu Kilonzo/)).toBeInTheDocument()
     expect(screen.getByText(/Amsterdam, the Netherlands/)).toBeInTheDocument()
     expect(screen.getByText(/outside Kenya/)).toBeInTheDocument()
+    expect(screen.getByText(/one cookie that keeps you signed in/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'fkatheukilonzo@gmail.com' })).toHaveAttribute(
       'href',
       'mailto:fkatheukilonzo@gmail.com',

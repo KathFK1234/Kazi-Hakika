@@ -41,15 +41,15 @@ export function LandingPage() {
           <p className="hint">Free to use. No CV upload, no phone number, no ads.</p>
         </div>
 
-        <div className="preview" aria-hidden="true">
+        <div className="landing-preview" aria-hidden="true">
           {PREVIEW.map((column) => (
-            <div className="preview-column" key={column.stage}>
-              <p className="preview-stage">{column.stage}</p>
+            <div className="landing-preview-column" key={column.stage}>
+              <p className="landing-preview-stage">{column.stage}</p>
               {column.cards.map((card) => (
-                <div className="preview-card" key={card.role}>
-                  <p className="preview-role">{card.role}</p>
-                  <p className="preview-meta">{card.company}</p>
-                  <p className="preview-meta">{card.due}</p>
+                <div className="landing-preview-card" key={card.role}>
+                  <p className="landing-preview-role">{card.role}</p>
+                  <p className="landing-preview-meta">{card.company}</p>
+                  <p className="landing-preview-meta">{card.due}</p>
                 </div>
               ))}
             </div>

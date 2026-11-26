@@ -652,7 +652,7 @@ input[type='checkbox'] {
   margin: 1.25rem 0 0.5rem;
 }
 
-.preview {
+.landing-preview {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.6rem;
@@ -662,37 +662,37 @@ input[type='checkbox'] {
   border: 1px solid var(--border);
 }
 
-.preview-column {
+.landing-preview-column {
   display: grid;
   align-content: start;
   gap: 0.5rem;
 }
 
-.preview-stage {
+.landing-preview-stage {
   margin: 0;
   font-weight: 700;
   font-size: 0.85rem;
 }
 
-.preview-card {
+.landing-preview-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.55rem 0.6rem;
 }
 
-.preview-card p {
+.landing-preview-card p {
   margin: 0;
   overflow-wrap: anywhere;
 }
 
-.preview-role {
+.landing-preview-role {
   color: var(--accent);
   font-weight: 600;
   font-size: 0.85rem;
 }
 
-.preview-meta {
+.landing-preview-meta {
   color: var(--muted);
   font-size: 0.75rem;
 }

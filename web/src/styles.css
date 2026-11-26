@@ -18,8 +18,10 @@
   line-height: 1.5;
 }
 
+/* Dark tokens apply when the device prefers dark and no theme is chosen,
+   or when the user picks Dark (data-theme, set by public/theme.js). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0f1419;
     --surface: #171d24;
     --surface-2: #212934;
@@ -34,6 +36,27 @@
     --ok: #6fd3a0;
     --focus: #aecbfa;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1419;
+  --surface: #171d24;
+  --surface-2: #212934;
+  --text: #e6eaf0;
+  --muted: #a3adba;
+  --accent: #8ab4f8;
+  --accent-text: #0b1a33;
+  --border: #2e3744;
+  --control-border: #7d8899;
+  --danger: #f2a49c;
+  --warn: #e8b85a;
+  --ok: #6fd3a0;
+  --focus: #aecbfa;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 * {
@@ -149,6 +172,20 @@ nav {
   display: flex;
   gap: 0.25rem;
   align-items: center;
+}
+
+.header-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.theme-switch select {
+  width: auto;
+  min-height: 44px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
 }
 
 nav a,

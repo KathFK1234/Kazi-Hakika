@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { api, type Meta } from './api'
 import { AuthProvider } from './auth'
+import { ThemeSwitch } from './components/ThemeSwitch'
 import { useAuth } from './auth-context'
 import { ApplicationPage } from './pages/ApplicationPage'
 import { ForgotPasswordPage, LoginPage, ResetPasswordPage, SignupPage, VerifyEmailPage } from './pages/AuthPages'
@@ -56,23 +57,26 @@ function Header({ meta }: { meta: Meta }) {
         </Link>
         <span className="tagline">{meta.tagline}</span>
       </div>
-      {me && (
-        <nav aria-label="Main">
-          <NavLink to="/" end>
-            Applications
-          </NavLink>
-          <NavLink to="/settings">Settings</NavLink>
-          <button
-            type="button"
-            className="link"
-            onClick={() => {
-              void logout().then(() => navigate('/login'))
-            }}
-          >
-            Sign out
-          </button>
-        </nav>
-      )}
+      <div className="header-tools">
+        {me && (
+          <nav aria-label="Main">
+            <NavLink to="/" end>
+              Applications
+            </NavLink>
+            <NavLink to="/settings">Settings</NavLink>
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                void logout().then(() => navigate('/login'))
+              }}
+            >
+              Sign out
+            </button>
+          </nav>
+        )}
+        <ThemeSwitch />
+      </div>
     </header>
   )
 }

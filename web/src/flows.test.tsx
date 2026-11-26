@@ -224,6 +224,19 @@ describe('account', () => {
     )
   })
 
+  it('offers a light/dark choice in the header, signed in or not', async () => {
+    mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': signedOut })
+    renderAt('/login')
+    const theme = await screen.findByRole('combobox', { name: 'Colour theme' })
+    expect(theme).toHaveValue('system')
+    await userEvent.selectOptions(theme, 'dark')
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(localStorage.getItem('kh-theme')).toBe('dark')
+    await userEvent.selectOptions(theme, 'system')
+    expect(document.documentElement.dataset.theme).toBeUndefined()
+    expect(localStorage.getItem('kh-theme')).toBeNull()
+  })
+
   it('titles each page and moves focus to the new page on navigation', async () => {
     mockApi({
       'GET /api/meta': META,

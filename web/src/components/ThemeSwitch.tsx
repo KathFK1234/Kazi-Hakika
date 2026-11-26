@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { readTheme, setTheme, type Theme } from '../theme'
+import { readTheme, setTheme, THEMES, type Theme } from '../theme'
 
 const LABELS: Record<Theme, string> = {
   system: 'Device theme',
@@ -21,7 +21,7 @@ export function ThemeSwitch() {
           setChoice(next)
         }}
       >
-        {(Object.keys(LABELS) as Theme[]).map((value) => (
+        {THEMES.map((value) => (
           <option key={value} value={value}>
             {LABELS[value]}
           </option>

@@ -68,9 +68,12 @@ export type DigestPreview = {
 
 export class ApiError extends Error {
   readonly status: number
-  constructor(status: number, message: string) {
+  /** The request field the server rejected, when it named one. */
+  readonly field?: string
+  constructor(status: number, message: string, field?: string) {
     super(message)
     this.status = status
+    this.field = field
   }
 }
 
@@ -80,18 +83,36 @@ export function setCsrfToken(token: string) {
   csrfToken = token
 }
 
-function describe(detail: unknown, fallback: string): string {
-  if (typeof detail === 'string') return detail
+const FIELD_LABELS: Record<string, string> = {
+  email: 'Email',
+  password: 'Password',
+  handle: 'Handle',
+  role_title: 'Role title',
+  company_name: 'Company',
+  job_url: 'Job link',
+  stage: 'Stage',
+  deadline: 'Deadline',
+  applied_on: 'Applied on',
+  salary_note: 'Salary note',
+  notes: 'Notes',
+}
+
+/** A message people can read, and the field it's about. */
+export function describe(detail: unknown, fallback: string): { message: string; field?: string } {
+  if (typeof detail === 'string') return { message: detail }
   // FastAPI validation errors: [{loc, msg}, ...]
   if (Array.isArray(detail) && detail.length > 0) {
     const first = detail[0] as { msg?: unknown; loc?: unknown }
     if (typeof first.msg === 'string') {
-      const field = Array.isArray(first.loc) ? String(first.loc[first.loc.length - 1]) : ''
-      const msg = first.msg.replace(/^Value error, /, '')
-      return field && field !== 'body' ? `${field.replace(/_/g, ' ')}: ${msg}` : msg
+      const key = Array.isArray(first.loc) ? String(first.loc[first.loc.length - 1]) : ''
+      const field = key && key !== 'body' ? key : undefined
+      // Our own validators write whole sentences; show them as they are.
+      if (first.msg.startsWith('Value error, ')) return { message: first.msg.slice('Value error, '.length), field }
+      const label = field ? (FIELD_LABELS[field] ?? field.replace(/_/g, ' ')) : ''
+      return { message: label ? `${label}: ${first.msg}` : first.msg, field }
     }
   }
-  return fallback
+  return { message: fallback }
 }
 
 export async function request<T>(
@@ -113,13 +134,14 @@ export async function request<T>(
       response.status === 429
         ? 'Too many attempts. Please wait a minute.'
         : 'Something went wrong. Please try again.'
+    let field: string | undefined
     try {
       const data = (await response.json()) as { detail?: unknown }
-      message = describe(data.detail, message)
+      ;({ message, field } = describe(data.detail, message))
     } catch {
       // keep the generic message
     }
-    throw new ApiError(response.status, message)
+    throw new ApiError(response.status, message, field)
   }
   if (response.status === 204) return undefined as T
   try {

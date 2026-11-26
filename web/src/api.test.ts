@@ -21,6 +21,22 @@ describe('request', () => {
 
   it('shows the first validation message with its field', async () => {
     respond(JSON.stringify({ detail: [{ loc: ['body', 'role_title'], msg: 'String should have at least 1 character' }] }), 422, 'application/json')
-    await expect(request('POST', '/api/x', {})).rejects.toThrow('role title: String should have at least 1 character')
+    await expect(request('POST', '/api/x', {})).rejects.toMatchObject({
+      message: 'Role title: String should have at least 1 character',
+      field: 'role_title',
+      status: 422,
+    })
+  })
+
+  it('shows our own validation sentences as written, without the field key', async () => {
+    respond(
+      JSON.stringify({ detail: [{ loc: ['body', 'handle'], msg: 'Value error, Handle: 3 to 30 letters, numbers, - or _.' }] }),
+      422,
+      'application/json',
+    )
+    await expect(request('POST', '/api/x', {})).rejects.toMatchObject({
+      message: 'Handle: 3 to 30 letters, numbers, - or _.',
+      field: 'handle',
+    })
   })
 })

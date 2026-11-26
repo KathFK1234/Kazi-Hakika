@@ -52,7 +52,9 @@ describe('sign-up', () => {
     await userEvent.type(screen.getByLabelText('Handle'), 'admin')
     await userEvent.type(screen.getByLabelText('Password'), 'correct horse battery')
     await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('handle: That handle is reserved. Please pick another.')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('That handle is reserved. Please pick another.')
+    expect(alert).not.toHaveTextContent('handle:')
   })
 })
 

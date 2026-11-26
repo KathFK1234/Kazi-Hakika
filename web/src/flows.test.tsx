@@ -216,8 +216,10 @@ describe('account', () => {
     expect(await screen.findByRole('link', { name: 'What we store' })).toHaveAttribute('href', '/privacy')
     await userEvent.click(screen.getByRole('link', { name: 'Your data' }))
     expect(await screen.findByRole('heading', { name: 'Your data, in plain words' })).toBeInTheDocument()
-    expect(screen.getByText(/Resend sends our emails/)).toBeInTheDocument()
+    expect(screen.getByText(/Resend, a service based in the United States, sends our emails/)).toBeInTheDocument()
     expect(screen.getByText(/run by Katheu Kilonzo/)).toBeInTheDocument()
+    expect(screen.getByText(/Amsterdam, the Netherlands/)).toBeInTheDocument()
+    expect(screen.getByText(/outside Kenya/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'fkatheukilonzo@gmail.com' })).toHaveAttribute(
       'href',
       'mailto:fkatheukilonzo@gmail.com',

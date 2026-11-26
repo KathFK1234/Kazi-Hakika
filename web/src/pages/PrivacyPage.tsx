@@ -34,8 +34,12 @@ export function PrivacyPage() {
 
       <h2>Who else handles it</h2>
       <ul>
-        <li>Railway hosts the app and its database.</li>
-        <li>Resend sends our emails (confirmation, password reset and the daily reminder), so it sees your email address and the email's content, and keeps its own delivery logs.</li>
+        <li>Railway hosts the app and its database on servers in Amsterdam, the Netherlands (EU).</li>
+        <li>
+          Resend, a service based in the United States, sends our emails (confirmation, password reset and the daily
+          reminder), so it sees your email address and the email&apos;s content, and keeps its own delivery logs.
+        </li>
+        <li>So your data is stored and processed outside Kenya, by these two providers only.</li>
       </ul>
 
       <h2>How long we keep it</h2>

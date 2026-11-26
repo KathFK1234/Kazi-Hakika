@@ -10,6 +10,14 @@ export function PrivacyPage() {
         This is a short notice while the service is being built. A full privacy policy and terms come before launch.
       </p>
 
+      <h2>Who is responsible</h2>
+      <p>
+        Kazi Hakika is run by Katheu Kilonzo, who decides how your data is used and is responsible for it (the data
+        controller). For any question or request about your data, or to complain, write to{' '}
+        <a href="mailto:fkatheukilonzo@gmail.com">fkatheukilonzo@gmail.com</a>. You can also complain to Kenya&apos;s
+        Office of the Data Protection Commissioner.
+      </p>
+
       <h2>What we store</h2>
       <ul>
         <li>Your email address, a password hash (never the password itself) and the public handle you choose.</li>

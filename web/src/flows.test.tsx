@@ -217,6 +217,11 @@ describe('account', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Your data' }))
     expect(await screen.findByRole('heading', { name: 'Your data, in plain words' })).toBeInTheDocument()
     expect(screen.getByText(/Resend sends our emails/)).toBeInTheDocument()
+    expect(screen.getByText(/run by Katheu Kilonzo/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'fkatheukilonzo@gmail.com' })).toHaveAttribute(
+      'href',
+      'mailto:fkatheukilonzo@gmail.com',
+    )
   })
 
   it('titles each page and moves focus to the new page on navigation', async () => {

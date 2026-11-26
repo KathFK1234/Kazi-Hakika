@@ -30,8 +30,8 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "pip-audit>=2.7",
-    "httpx2>=2.16",
-    "watchfiles>=1.0",  # uvicorn --reload  # what starlette.testclient wants (httpx there is deprecated)
+    "httpx2>=2.16",  # what starlette.testclient wants (httpx there is deprecated)
+    "watchfiles>=1.0",  # uvicorn --reload
 ]
 
 [build-system]

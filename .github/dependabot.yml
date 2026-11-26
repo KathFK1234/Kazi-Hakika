@@ -25,6 +25,15 @@ updates:
       web-minor-and-patch:
         update-types: ["minor", "patch"]
 
+  # The Railway SDK that .railway/railway.ts imports (config plan/apply).
+  - package-ecosystem: npm
+    directory: /.railway
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Africa/Nairobi
+    open-pull-requests-limit: 2
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

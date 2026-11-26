@@ -7,9 +7,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import DBAPIError
+from starlette.types import Scope
 
 from app.config import Settings, get_settings
 from app.errors import database_error_handler
@@ -77,11 +78,22 @@ def _allowed_origins(settings: Settings) -> frozenset[str]:
     return frozenset(origins)
 
 
+class HashedAssets(StaticFiles):
+    """Vite names every file in /assets after its content, so a URL never
+    changes meaning: browsers may keep it for a year without asking again."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 304):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
 def _mount_frontend(app: FastAPI, settings: Settings, static_dir: Path) -> None:
     """Serve the Vite build from app/static, with index.html for client-side routes."""
     assets = static_dir / "assets"
     if assets.is_dir():
-        app.mount("/assets", StaticFiles(directory=assets), name="assets")
+        app.mount("/assets", HashedAssets(directory=assets), name="assets")
 
     index_path = static_dir / "index.html"
     index_html = (
@@ -102,7 +114,8 @@ def _mount_frontend(app: FastAPI, settings: Settings, static_dir: Path) -> None:
         if path:
             candidate = (static_dir / path).resolve()
             if candidate.is_relative_to(static_root) and candidate.is_file():
-                return FileResponse(candidate)
+                # Unhashed names (theme.js): always check for a newer copy.
+                return FileResponse(candidate, headers={"Cache-Control": "no-cache"})
         if index_html is None:
             raise HTTPException(status_code=404, detail="Frontend not built")
         return HTMLResponse(index_html, headers={"Cache-Control": "no-cache"})

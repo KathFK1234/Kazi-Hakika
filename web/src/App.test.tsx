@@ -20,7 +20,7 @@ function renderAt(path: string) {
 const page = (items: unknown[]) => ({ items, total: items.length, next_offset: null })
 
 describe('signed out', () => {
-  it('sends visitors to sign in and signs them in', async () => {
+  it('sends visitors from a private page to sign in and signs them in', async () => {
     let signedIn = false
     const calls = mockApi({
       'GET /api/meta': META,
@@ -31,7 +31,7 @@ describe('signed out', () => {
       },
       'GET /api/applications': page([]),
     })
-    renderAt('/')
+    renderAt('/settings')
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
 
     await userEvent.type(screen.getByLabelText('Email'), 'wanjiru@example.com')

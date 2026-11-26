@@ -5,6 +5,7 @@ import { AuthProvider } from './auth'
 import { ThemeSwitch } from './components/ThemeSwitch'
 import { useAuth } from './auth-context'
 import { ApplicationPage } from './pages/ApplicationPage'
+import { LandingPage } from './pages/LandingPage'
 import { ForgotPasswordPage, LoginPage, ResetPasswordPage, SignupPage, VerifyEmailPage } from './pages/AuthPages'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { GoodbyePage, SettingsPage } from './pages/SettingsPage'
@@ -37,6 +38,13 @@ function RequireAuth({ children }: { children: ReactNode }) {
   if (loading) return <p aria-busy="true">Loading…</p>
   if (!me) return <Navigate to="/login" replace />
   return children
+}
+
+/** "/" is the tracker when signed in, and the landing page otherwise. */
+function Home() {
+  const { me, loading } = useAuth()
+  if (loading) return <p aria-busy="true">Loading…</p>
+  return me ? <TrackerPage /> : <LandingPage />
 }
 
 function GuestOnly({ children }: { children: ReactNode }) {
@@ -73,6 +81,12 @@ function Header({ meta }: { meta: Meta }) {
             >
               Sign out
             </button>
+          </nav>
+        )}
+        {!me && (
+          <nav aria-label="Account">
+            <NavLink to="/login">Sign in</NavLink>
+            <NavLink to="/signup">Create account</NavLink>
           </nav>
         )}
         <ThemeSwitch />
@@ -126,7 +140,7 @@ export function AppRoutes() {
       <UnverifiedBanner />
       <main id="main" tabIndex={-1}>
         <Routes>
-          <Route path="/" element={<RequireAuth><TrackerPage /></RequireAuth>} />
+          <Route path="/" element={<Home />} />
           <Route path="/applications/new" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
           <Route path="/applications/:id" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />

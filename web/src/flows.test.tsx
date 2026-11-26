@@ -224,6 +224,26 @@ describe('account', () => {
     )
   })
 
+  it('shows signed-out visitors what Kazi Hakika is, with ways in', async () => {
+    mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': signedOut })
+    renderAt('/')
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Keep every job application in one place' }),
+    ).toBeInTheDocument()
+    expect(document.title).toBe('Job application tracker · Kazi Hakika')
+    for (const link of screen.getAllByRole('link', { name: 'Create a free account' })) {
+      expect(link).toHaveAttribute('href', '/signup')
+    }
+    const account = screen.getByRole('navigation', { name: 'Account' })
+    expect(within(account).getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('heading', { name: 'Coming next' })).toBeInTheDocument()
+    expect(screen.getByText('Being built now; not available yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
+
+    await userEvent.click(within(account).getByRole('link', { name: 'Create account' }))
+    expect(await screen.findByRole('heading', { name: 'Create your account' })).toBeInTheDocument()
+  })
+
   it('offers a light/dark choice in the header, signed in or not', async () => {
     mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': signedOut })
     renderAt('/login')

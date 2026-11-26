@@ -90,4 +90,8 @@ def main(base_url: str) -> None:
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         sys.exit(__doc__)
-    main(sys.argv[1])
+    try:
+        main(sys.argv[1])
+    except httpx.HTTPError as exc:
+        print(f"FAIL: could not reach the site ({type(exc).__name__}: {exc})")
+        sys.exit(1)

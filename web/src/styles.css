@@ -173,6 +173,7 @@ main {
 
 nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   align-items: center;
 }
@@ -193,6 +194,7 @@ nav {
 
 nav a,
 nav button.link {
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   min-height: 44px;

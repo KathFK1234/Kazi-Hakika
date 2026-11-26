@@ -158,6 +158,9 @@ main {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   font-weight: 700;
   font-size: 1.2rem;
   text-decoration: none;
@@ -189,7 +192,10 @@ nav {
 }
 
 nav a,
-nav .link {
+nav button.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   padding: 0.5rem 0.6rem;
   border-radius: var(--radius);
   text-decoration: none;
@@ -294,6 +300,9 @@ input[type='checkbox'] {
   display: flex;
   gap: 0.6rem;
   align-items: flex-start;
+  min-height: 44px;
+  padding: 0.55rem 0;
+  cursor: pointer;
 }
 
 .field-row {
@@ -471,13 +480,16 @@ input[type='checkbox'] {
 }
 
 .job-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   font-size: 0.875rem;
   justify-self: start;
 }
 
 .move select {
   margin-top: 0.35rem;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0.25rem 0.5rem;
   font-size: 0.875rem;
 }

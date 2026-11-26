@@ -41,7 +41,7 @@ export function LoginPage() {
     <section className="auth-card">
       <h1>Sign in</h1>
       <form onSubmit={submit} noValidate>
-        <Field label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field label="Email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
         <Field label="Password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         <FormError message={error} />
         <button className="primary" disabled={busy}>
@@ -86,10 +86,13 @@ export function SignupPage() {
         Free. Your applications are private to you. <Link to="/privacy">What we store</Link>
       </p>
       <form onSubmit={submit} noValidate>
-        <Field label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        {/* The email is what you sign in with, so password managers save it as the username. */}
+        <Field label="Email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
         <Field
           label="Handle"
-          autoComplete="username"
+          autoComplete="nickname"
+          autoCapitalize="none"
+          spellCheck={false}
           required
           minLength={3}
           maxLength={30}

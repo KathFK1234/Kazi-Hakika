@@ -247,6 +247,17 @@ describe('account', () => {
     expect(await screen.findByRole('heading', { name: 'Create your account' })).toBeInTheDocument()
   })
 
+  it('lets password managers save the email, not the handle, as the login', async () => {
+    mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': signedOut })
+    renderAt('/signup')
+    expect(await screen.findByLabelText('Email')).toHaveAttribute('autocomplete', 'username')
+    expect(screen.getByLabelText(/Handle/)).toHaveAttribute('autocomplete', 'nickname')
+    expect(screen.getByLabelText(/Password/)).toHaveAttribute('autocomplete', 'new-password')
+    await userEvent.click(within(screen.getByRole('main')).getByRole('link', { name: 'Sign in' }))
+    expect(await screen.findByLabelText('Email')).toHaveAttribute('autocomplete', 'username')
+    expect(screen.getByLabelText('Password')).toHaveAttribute('autocomplete', 'current-password')
+  })
+
   it('offers a light/dark choice in the header, signed in or not', async () => {
     mockApi({ 'GET /api/meta': META, 'GET /api/auth/me': signedOut })
     renderAt('/login')

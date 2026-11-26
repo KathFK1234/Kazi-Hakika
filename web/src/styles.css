@@ -407,6 +407,9 @@ input[type='checkbox'] {
 }
 
 .board {
+  /* Contains absolutely positioned children (visually-hidden labels), so
+     they scroll with the board instead of widening the page. */
+  position: relative;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(16rem, 85vw);

@@ -200,6 +200,27 @@ describe('tracker', () => {
     const post = calls.find((c) => c.method === 'POST')
     expect(post?.body).toMatchObject({ role_title: 'QA Engineer', company_name: 'Twiga', stage: 'saved', job_url: null })
   })
+
+  it('shows a rejected field under that field and focuses it', async () => {
+    mockApi({
+      'GET /api/meta': META,
+      'GET /api/auth/me': ME,
+      'POST /api/applications': () => ({
+        status: 422,
+        body: { detail: [{ loc: ['body', 'job_url'], msg: 'Value error, Use a full http(s) link.' }] },
+      }),
+    })
+    renderAt('/applications/new')
+    await userEvent.type(await screen.findByLabelText('Role title'), 'QA Engineer')
+    await userEvent.type(screen.getByLabelText('Company'), 'Twiga')
+    await userEvent.type(screen.getByLabelText('Job link'), 'ftp://x')
+    await userEvent.click(screen.getByRole('button', { name: 'Add role' }))
+    const link = screen.getByLabelText('Job link')
+    await waitFor(() => expect(link).toHaveAttribute('aria-invalid', 'true'))
+    expect(link).toHaveAccessibleDescription('Use a full http(s) link.')
+    expect(link).toHaveFocus()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })
 
 describe('settings', () => {

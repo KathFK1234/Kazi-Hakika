@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { api, STAGE_LABELS, STAGES, type ApplicationDetail, type ApplicationInput, type Stage } from '../api'
 import { Field, FormError } from '../components/Field'
 import { JobLink } from '../components/JobLink'
-import { errorMessage } from '../errors'
+import { errorMessage, fieldError, formError, toProblem, type Problem } from '../errors'
 
 const EMPTY: ApplicationInput = {
   role_title: '',
@@ -34,6 +34,9 @@ function toInput(a: ApplicationDetail): ApplicationInput {
 
 const orNull = (v: string) => (v.trim() === '' ? null : v)
 
+// Fields that show their own save errors; others go in the form-level alert.
+const FIELD_NAMES = ['role_title', 'company_name', 'job_url', 'deadline', 'applied_on', 'salary_note'] as const
+
 export function ApplicationPage() {
   const { id } = useParams()
   const isNew = id === undefined
@@ -41,6 +44,8 @@ export function ApplicationPage() {
   const [form, setForm] = useState<ApplicationInput>(EMPTY)
   const [detail, setDetail] = useState<ApplicationDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Save errors, shown under the field they're about when there is one.
+  const [problem, setProblem] = useState<Problem | null>(null)
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(isNew)
   useTitle(isNew ? 'Add a role' : 'Edit role')
@@ -67,12 +72,13 @@ export function ApplicationPage() {
     event.preventDefault()
     setBusy(true)
     setError(null)
+    setProblem(null)
     try {
       if (isNew) await api.createApplication(form)
       else await api.updateApplication(id, form)
       navigate('/')
     } catch (e) {
-      setError(errorMessage(e))
+      setProblem(toProblem(e))
     } finally {
       setBusy(false)
     }
@@ -106,10 +112,12 @@ export function ApplicationPage() {
       <h1>{isNew ? 'Add a role' : 'Edit role'}</h1>
       {detail && <JobLink url={detail.job_url} />}
       <form onSubmit={save} noValidate>
-        <Field label="Role title" required maxLength={200} value={form.role_title} onChange={(e) => set('role_title', e.target.value)} />
-        <Field label="Company" required maxLength={200} value={form.company_name} onChange={(e) => set('company_name', e.target.value)} />
+        <Field label="Role title" name="role_title" error={fieldError(problem, 'role_title')} required maxLength={200} value={form.role_title} onChange={(e) => set('role_title', e.target.value)} />
+        <Field label="Company" name="company_name" error={fieldError(problem, 'company_name')} required maxLength={200} value={form.company_name} onChange={(e) => set('company_name', e.target.value)} />
         <Field
           label="Job link"
+          name="job_url"
+          error={fieldError(problem, 'job_url')}
           type="url"
           inputMode="url"
           placeholder="https://"
@@ -128,11 +136,13 @@ export function ApplicationPage() {
           </select>
         </div>
         <div className="field-row">
-          <Field label="Deadline" type="date" value={form.deadline ?? ''} onChange={(e) => set('deadline', orNull(e.target.value))} />
-          <Field label="Applied on" type="date" value={form.applied_on ?? ''} onChange={(e) => set('applied_on', orNull(e.target.value))} />
+          <Field label="Deadline" name="deadline" error={fieldError(problem, 'deadline')} type="date" value={form.deadline ?? ''} onChange={(e) => set('deadline', orNull(e.target.value))} />
+          <Field label="Applied on" name="applied_on" error={fieldError(problem, 'applied_on')} type="date" value={form.applied_on ?? ''} onChange={(e) => set('applied_on', orNull(e.target.value))} />
         </div>
         <Field
           label="Salary note"
+          name="salary_note"
+          error={fieldError(problem, 'salary_note')}
           maxLength={200}
           placeholder="e.g. KSh 150k–180k gross, from the ad"
           value={form.salary_note ?? ''}
@@ -152,7 +162,7 @@ export function ApplicationPage() {
             {form.notes.length.toLocaleString()} / {NOTES_MAX.toLocaleString()} characters. Don't paste your CV here; keep it to notes about this role.
           </p>
         </div>
-        <FormError message={error} />
+        <FormError message={error ?? formError(problem, FIELD_NAMES)} />
         <div className="form-actions">
           <button className="primary" disabled={busy}>
             {busy ? 'Saving…' : isNew ? 'Add role' : 'Save changes'}

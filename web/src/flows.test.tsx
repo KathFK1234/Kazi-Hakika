@@ -52,9 +52,13 @@ describe('sign-up', () => {
     await userEvent.type(screen.getByLabelText('Handle'), 'admin')
     await userEvent.type(screen.getByLabelText('Password'), 'correct horse battery')
     await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('That handle is reserved. Please pick another.')
-    expect(alert).not.toHaveTextContent('handle:')
+    // Shown under the handle field, which is marked invalid and focused.
+    const handle = screen.getByLabelText('Handle')
+    await waitFor(() => expect(handle).toHaveAttribute('aria-invalid', 'true'))
+    expect(handle).toHaveAccessibleDescription(/That handle is reserved\. Please pick another\./)
+    expect(handle).toHaveFocus()
+    expect(screen.queryByText(/handle:/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
 

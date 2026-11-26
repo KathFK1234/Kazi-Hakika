@@ -4,10 +4,10 @@ import { Link, useNavigate } from 'react-router'
 import { api } from '../api'
 import { useAuth } from '../auth-context'
 import { Field, FormError } from '../components/Field'
-import { errorMessage } from '../errors'
+import { errorMessage, fieldError, formError, toProblem, type Problem } from '../errors'
 
 function useSubmit<T>(action: () => Promise<T>, onDone: (result: T) => void) {
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Problem | null>(null)
   const [busy, setBusy] = useState(false)
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -16,7 +16,7 @@ function useSubmit<T>(action: () => Promise<T>, onDone: (result: T) => void) {
     try {
       onDone(await action())
     } catch (e) {
-      setError(errorMessage(e))
+      setError(toProblem(e))
     } finally {
       setBusy(false)
     }
@@ -41,9 +41,9 @@ export function LoginPage() {
     <section className="auth-card">
       <h1>Sign in</h1>
       <form onSubmit={submit} noValidate>
-        <Field label="Email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Field label="Password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-        <FormError message={error} />
+        <Field label="Email" name="email" type="email" autoComplete="username" required value={email} error={fieldError(error, 'email')} onChange={(e) => setEmail(e.target.value)} />
+        <Field label="Password" name="password" type="password" autoComplete="current-password" required value={password} error={fieldError(error, 'password')} onChange={(e) => setPassword(e.target.value)} />
+        <FormError message={formError(error, ['email', 'password'])} />
         <button className="primary" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
@@ -87,9 +87,11 @@ export function SignupPage() {
       </p>
       <form onSubmit={submit} noValidate>
         {/* The email is what you sign in with, so password managers save it as the username. */}
-        <Field label="Email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field label="Email" name="email" type="email" autoComplete="username" required value={email} error={fieldError(error, 'email')} onChange={(e) => setEmail(e.target.value)} />
         <Field
           label="Handle"
+          name="handle"
+          error={fieldError(error, 'handle')}
           autoComplete="nickname"
           autoCapitalize="none"
           spellCheck={false}
@@ -103,6 +105,8 @@ export function SignupPage() {
         />
         <Field
           label="Password"
+          name="password"
+          error={fieldError(error, 'password')}
           type="password"
           autoComplete="new-password"
           required
@@ -112,7 +116,7 @@ export function SignupPage() {
           onChange={(e) => setPassword(e.target.value)}
           hint="At least 10 characters. A short phrase is easy to remember."
         />
-        <FormError message={error} />
+        <FormError message={formError(error, ['email', 'handle', 'password'])} />
         <button className="primary" disabled={busy}>
           {busy ? 'Creating…' : 'Create account'}
         </button>
@@ -195,8 +199,8 @@ export function ForgotPasswordPage() {
         <p role="status">{done} The link works for 1 hour.</p>
       ) : (
         <form onSubmit={submit} noValidate>
-          <Field label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          <FormError message={error} />
+          <Field label="Email" name="email" type="email" autoComplete="email" required value={email} error={fieldError(error, 'email')} onChange={(e) => setEmail(e.target.value)} />
+          <FormError message={formError(error, ['email'])} />
           <button className="primary" disabled={busy}>
             {busy ? 'Sending…' : 'Send reset link'}
           </button>
@@ -241,6 +245,8 @@ export function ResetPasswordPage() {
       <form onSubmit={submit} noValidate>
         <Field
           label="New password"
+          name="password"
+          error={fieldError(error, 'password')}
           type="password"
           autoComplete="new-password"
           required
@@ -250,7 +256,7 @@ export function ResetPasswordPage() {
           onChange={(e) => setPassword(e.target.value)}
           hint="At least 10 characters."
         />
-        <FormError message={error} />
+        <FormError message={formError(error, ['password'])} />
         <button className="primary" disabled={busy}>
           {busy ? 'Saving…' : 'Save password'}
         </button>

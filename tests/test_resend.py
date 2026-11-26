@@ -78,3 +78,11 @@ def test_no_key_logs_instead_of_sending(
         resend_transport(prod)(MSG)
     assert "RESEND_API_KEY is not set" in caplog.text
     assert "a@example.com" not in caplog.text
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_blank_key_counts_as_no_key(blank: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: pytest.fail("sent"))
+    settings = make_settings(resend_api_key=blank)
+    assert settings.resend_api_key is None
+    resend_transport(settings)(MSG)

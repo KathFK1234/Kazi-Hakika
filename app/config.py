@@ -63,6 +63,14 @@ class Settings(BaseSettings):
                 return "postgresql+psycopg://" + value.removeprefix(prefix)
         return value
 
+    @field_validator("resend_api_key", mode="before")
+    @classmethod
+    def _blank_key_means_none(cls, value: object) -> object:
+        """A Railway reference to an unset variable arrives as "": no key."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"

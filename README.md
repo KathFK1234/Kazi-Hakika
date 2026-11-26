@@ -34,7 +34,7 @@ One FastAPI service serves the API and the built React frontend, alongside one P
 
 ## Run it locally
 
-Needs Python 3.14+ (the image and CI run 3.15), Node 22.22.2+ (the image builds on Node 26) and Docker (or any PostgreSQL 16+).
+Needs Python 3.14+ (the image and CI run 3.15), Node 22.22.2+ (the image builds on Node 26) and Docker (or any PostgreSQL 16+; production, CI and docker-compose run 18). A docker-compose volume made by an older Postgres can't be reused: `docker compose down -v` (deletes local data) and start again.
 
 ```bash
 python -m venv .venv && . .venv/bin/activate

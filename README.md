@@ -150,3 +150,7 @@ The target is about $5 a month on Railway's Hobby plan, with hard caps so a bug 
 - Request bodies capped at 64 KB; notes at 5,000 characters; lists paginated at 50; at most 2,000 applications per user.
 - Email budget: at most 90 emails a UTC day (under Resend's free 100). The count and the send share one transaction, so a failed send uses no budget and the 91st is refused and logged. Sign-up and reset emails stop at 60, keeping 30 for the morning reminders, and each address gets at most one sign-up email a day.
 - More caps arrive with each feature: rate limits, pagination, outbound timeouts.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

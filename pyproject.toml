@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Kazi Hakika: verified roles, tracked your way."
 readme = "README.md"
 requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "fastapi>=0.115,<1",
     # Only the uvicorn extras the server uses: uvloop and httptools are
@@ -33,7 +35,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

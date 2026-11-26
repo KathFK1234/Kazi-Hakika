@@ -2,6 +2,7 @@
   "name": "kazi-hakika-web",
   "private": true,
   "version": "0.0.0",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22.22.2"

@@ -6,6 +6,7 @@ sign-up email from the day's budget (the confirmation link goes unused).
 Exits non-zero at the first failed step.
 """
 
+import re
 import secrets
 import sys
 from datetime import date, timedelta
@@ -34,6 +35,21 @@ def main(base_url: str) -> None:
         check("default-src 'self'" in headers.get("content-security-policy", ""), "CSP header")
         if base_url.startswith("https://"):
             check("max-age" in headers.get("strict-transport-security", ""), "HSTS header")
+
+        check('<script src="/theme.js"></script>' in page.text, "page loads the theme script")
+        r = c.get("/theme.js")
+        check(
+            r.status_code == 200 and "javascript" in r.headers.get("content-type", ""),
+            "theme script served as JavaScript",
+        )
+        found = re.search(r'src="(/assets/[^"]+\.js)"', page.text)
+        bundle = found.group(1) if found else ""
+        check(bool(bundle), "page references a bundled script")
+        r = c.get(bundle)
+        check(
+            r.status_code == 200 and "immutable" in r.headers.get("cache-control", ""),
+            "bundled assets cached as immutable",
+        )
 
         r = c.post(
             "/api/auth/signup", json={"email": email, "password": password, "handle": handle}

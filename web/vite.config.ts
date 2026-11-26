@@ -22,6 +22,8 @@ export default defineConfig({
     outDir: '../app/static',
     emptyOutDir: true,
     sourcemap: false,
+    // Never inline fonts as data: URIs; CSP font-src 'self' would block them.
+    assetsInlineLimit: (file) => (file.endsWith('.woff2') || file.endsWith('.woff') ? false : undefined),
   },
   server: {
     proxy: {

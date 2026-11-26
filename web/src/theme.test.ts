@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import source from '../public/theme.js?raw'
 import { applyTheme, readTheme, setTheme, THEME_KEY } from './theme'
 
 afterEach(() => {
@@ -46,5 +47,30 @@ describe('theme', () => {
     expect(readTheme()).toBe('system')
     setTheme('dark')
     expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+})
+
+describe('public/theme.js (runs before the app)', () => {
+  const run = () => new Function(source)()
+
+  it.each(['light', 'dark'] as const)('applies a saved %s choice under the same key as theme.ts', (theme) => {
+    localStorage.setItem(THEME_KEY, theme)
+    run()
+    expect(document.documentElement.dataset.theme).toBe(theme)
+  })
+
+  it('leaves the device setting alone for no or unknown values', () => {
+    run()
+    expect(document.documentElement.dataset.theme).toBeUndefined()
+    localStorage.setItem(THEME_KEY, 'system')
+    run()
+    expect(document.documentElement.dataset.theme).toBeUndefined()
+  })
+
+  it('survives blocked storage', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    expect(run).not.toThrow()
   })
 })

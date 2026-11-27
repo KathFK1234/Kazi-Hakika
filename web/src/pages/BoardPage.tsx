@@ -79,6 +79,8 @@ export function BoardPage() {
     }
   }
 
+  const moreActive = FILTER_KEYS.some((k) => k !== 'q' && params.get(k))
+
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -114,31 +116,38 @@ export function BoardPage() {
       </p>
 
       <form className="filters" onSubmit={applyFilters} aria-label="Filter roles">
-        <div className="field">
-          <label htmlFor="f-q">Search</label>
-          <input id="f-q" name="q" type="search" maxLength={100} defaultValue={params.get('q') ?? ''} placeholder="Role or company" />
+        <div className="filter-search">
+          <div className="field">
+            <label htmlFor="f-q">Search</label>
+            <input id="f-q" name="q" type="search" maxLength={100} defaultValue={params.get('q') ?? ''} placeholder="Role or company" />
+          </div>
+          <button className="primary">Show roles</button>
         </div>
-        <div className="field">
-          <label htmlFor="f-location">Location</label>
-          <input id="f-location" name="location" maxLength={100} defaultValue={params.get('location') ?? ''} placeholder="e.g. Nairobi" />
-        </div>
-        <div className="field">
-          <label htmlFor="f-due">Deadline</label>
-          <select id="f-due" name="due_within_days" defaultValue={params.get('due_within_days') ?? ''}>
-            <option value="">Any time</option>
-            <option value="7">Closing within 7 days</option>
-            <option value="30">Closing within 30 days</option>
-          </select>
-        </div>
-        <label className="check">
-          <input type="checkbox" name="remote" value="true" defaultChecked={params.get('remote') === 'true'} />
-          Remote only
-        </label>
-        <label className="check">
-          <input type="checkbox" name="verified_only" value="true" defaultChecked={params.get('verified_only') === 'true'} />
-          Verified only
-        </label>
-        <button className="primary">Show roles</button>
+        <details className="more-filters" open={moreActive}>
+          <summary>More filters{moreActive ? ' (in use)' : ''}</summary>
+          <div className="more-filters-body">
+            <div className="field">
+              <label htmlFor="f-location">Location</label>
+              <input id="f-location" name="location" maxLength={100} defaultValue={params.get('location') ?? ''} placeholder="e.g. Nairobi" />
+            </div>
+            <div className="field">
+              <label htmlFor="f-due">Deadline</label>
+              <select id="f-due" name="due_within_days" defaultValue={params.get('due_within_days') ?? ''}>
+                <option value="">Any time</option>
+                <option value="7">Closing within 7 days</option>
+                <option value="30">Closing within 30 days</option>
+              </select>
+            </div>
+            <label className="check">
+              <input type="checkbox" name="remote" value="true" defaultChecked={params.get('remote') === 'true'} />
+              Remote only
+            </label>
+            <label className="check">
+              <input type="checkbox" name="verified_only" value="true" defaultChecked={params.get('verified_only') === 'true'} />
+              Verified only
+            </label>
+          </div>
+        </details>
       </form>
 
       <FormError message={error} />

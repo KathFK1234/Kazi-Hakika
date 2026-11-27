@@ -69,6 +69,7 @@ describe('board', () => {
     renderAt('/board')
     await screen.findByText('No roles match yet.')
     await userEvent.type(screen.getByLabelText('Search'), 'analyst')
+    await userEvent.click(screen.getByText('More filters'))
     await userEvent.click(screen.getByLabelText('Remote only'))
     await userEvent.selectOptions(screen.getByLabelText('Deadline'), '7')
     await userEvent.click(screen.getByRole('button', { name: 'Show roles' }))

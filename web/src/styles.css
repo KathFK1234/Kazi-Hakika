@@ -779,9 +779,6 @@ input[type='radio'] {
 }
 
 .filters {
-  display: grid;
-  gap: 0 0.75rem;
-  align-items: end;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -789,19 +786,41 @@ input[type='radio'] {
   margin: 1rem 0;
 }
 
-.filters .field,
-.filters .check {
-  margin-bottom: 0.75rem;
+.filter-search {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 0.5rem;
+  align-items: end;
 }
 
-.filters button {
-  justify-self: start;
-  margin-bottom: 0.75rem;
+.filter-search .field {
+  margin-bottom: 0;
+}
+
+.more-filters summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  width: fit-content;
+  margin-top: 0.25rem;
+}
+
+.more-filters-body {
+  display: grid;
+  gap: 0 0.75rem;
+  align-items: end;
+}
+
+.more-filters-body .field,
+.more-filters-body .check {
+  margin-bottom: 0.5rem;
 }
 
 @media (min-width: 52rem) {
-  .filters {
-    grid-template-columns: 2fr 1.5fr 1.5fr auto auto auto;
+  .more-filters-body {
+    grid-template-columns: 1.5fr 1.5fr auto auto;
   }
 }
 

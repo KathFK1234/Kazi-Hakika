@@ -15,7 +15,7 @@ from app.services.checking import OUTBOUND_PER_ACTOR
 from app.services.digest import today_eat
 from app.services.email import EmailMessage
 from app.services.lookups import Fetcher
-from tests.helpers import login, signup
+from tests.helpers import PASSWORD, login, signup
 
 PUBLIC = "93.184.215.14"
 SENTINEL = "zq-sentinel-ad-text-7731"
@@ -104,7 +104,7 @@ def test_posting_needs_a_confirmed_account(
     assert _post(board_client).status_code == 401
     board_client.post(
         "/api/auth/signup",
-        json={"email": "new@example.com", "password": "correct horse battery", "handle": "newbie"},
+        json={"email": "new@example.com", "password": PASSWORD, "handle": "newbie"},
     )
     login(board_client, "new@example.com")
     r = _post(board_client)

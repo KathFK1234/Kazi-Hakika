@@ -70,7 +70,7 @@ def test_one_private_address_among_public_ones_is_refused() -> None:
         "file:///etc/passwd",
         "https://tausi.co.ke:8443/",
         "http://tausi.co.ke:22/",
-        "https://user:pw@tausi.co.ke/",
+        "https://user:pw@tausi.co.ke/",  # pragma: allowlist secret (refused, not used)
         "https://tausi.co.ke:notaport/",
     ],
 )

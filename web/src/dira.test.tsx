@@ -125,6 +125,7 @@ describe('Dira', () => {
     const ideal = screen.getByLabelText(/what role are you aiming for/)
     await waitFor(() => expect(ideal).toHaveAttribute('aria-invalid', 'true'))
     expect(ideal).toHaveAccessibleDescription(/Write a sentence/)
+    expect(ideal).toHaveFocus()
   })
 
   it('explains patterns that need more data, and shows ones that have it', async () => {

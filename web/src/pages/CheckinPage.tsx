@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api, CONFIDENCE, type CheckinInput, type CheckinPrompt } from '../api'
 import { CONFIDENCE_LABELS } from '../dira'
@@ -26,6 +26,12 @@ export function CheckinPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const idealId = useId()
+  const idealRef = useRef<HTMLTextAreaElement>(null)
+  const idealError = fieldError(problem, 'ideal_role')
+  // Like Field: a rejected answer takes focus, so it's seen and read out.
+  useEffect(() => {
+    if (idealError) idealRef.current?.focus()
+  }, [idealError, problem])
 
   useEffect(() => {
     api.checkinPrompt().then(setPrompt, (e: unknown) => setError(errorMessage(e)))
@@ -55,7 +61,6 @@ export function CheckinPage() {
     )
   }
 
-  const idealError = fieldError(problem, 'ideal_role')
   return (
     <section className="form-page dira">
       <p>
@@ -88,6 +93,7 @@ export function CheckinPage() {
           <label htmlFor={idealId}>In a sentence, what role are you aiming for now?</label>
           <textarea
             id={idealId}
+            ref={idealRef}
             rows={2}
             maxLength={300}
             required

@@ -19,7 +19,7 @@ from app.middleware import (
     SameOriginMiddleware,
     SecurityHeadersMiddleware,
 )
-from app.routers import account, applications, auth, health, meta
+from app.routers import account, admin, applications, auth, board, health, meta
 from app.services.ratelimit import RateLimiter
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -59,6 +59,8 @@ def create_app(settings: Settings | None = None, static_dir: Path = STATIC_DIR) 
     app.include_router(auth.router)
     app.include_router(applications.router)
     app.include_router(account.router)
+    app.include_router(board.router)
+    app.include_router(admin.router)
 
     _mount_frontend(app, settings, static_dir)
 

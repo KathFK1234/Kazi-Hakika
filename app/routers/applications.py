@@ -3,13 +3,13 @@ session is RLS-bound to that user as well, so a missed filter still leaks nothin
 
 import uuid
 from datetime import UTC, date, datetime, timedelta
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Select, func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from app.deps import AuthDep, UserDb
 from app.models import NOTES_MAX, Application, StageEvent
@@ -109,6 +109,7 @@ class ApplicationOut(BaseModel):
     company_name: str
     job_url: str | None
     source: str
+    board_role_id: uuid.UUID | None
     stage: str
     deadline: date | None
     applied_on: date | None
@@ -133,7 +134,7 @@ def _today() -> date:
 
 
 def _record_stage(
-    db: UserDb,
+    db: Session,
     app: Application,
     user_id: uuid.UUID,
     from_stage: str | None,
@@ -198,10 +199,15 @@ def list_applications(
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-def create_application(body: ApplicationIn, auth: AuthDep, db: UserDb) -> ApplicationDetail:
+def add_application(
+    db: Session, user_id: uuid.UUID, fields: dict[str, Any], *, source: str = "own"
+) -> Application:
+    """Create an application and its first stage event (not committed).
+
+    The one way applications are added: by hand, and saved from the board.
+    """
     count = db.scalar(
-        select(func.count()).select_from(Application).where(Application.user_id == auth.user_id)
+        select(func.count()).select_from(Application).where(Application.user_id == user_id)
     )
     if (count or 0) >= MAX_APPLICATIONS_PER_USER:
         raise HTTPException(
@@ -209,17 +215,23 @@ def create_application(body: ApplicationIn, auth: AuthDep, db: UserDb) -> Applic
             detail=f"You can track up to {MAX_APPLICATIONS_PER_USER} applications. "
             "Delete some old ones to add more.",
         )
-    app = Application(user_id=auth.user_id, source="own", **body.model_dump())
+    app = Application(user_id=user_id, source=source, **fields)
     db.add(app)
     db.flush()
-    _record_stage(db, app, auth.user_id, None)
+    _record_stage(db, app, user_id, None)
+    return app
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_application(body: ApplicationIn, auth: AuthDep, db: UserDb) -> ApplicationDetail:
+    app = add_application(db, auth.user_id, body.model_dump())
     db.commit()
-    return _detail(db, auth.user_id, app.id)
+    return detail(db, auth.user_id, app.id)
 
 
 @router.get("/{app_id}")
 def get_application(app_id: uuid.UUID, auth: AuthDep, db: UserDb) -> ApplicationDetail:
-    return _detail(db, auth.user_id, app_id)
+    return detail(db, auth.user_id, app_id)
 
 
 @router.patch("/{app_id}")
@@ -240,7 +252,7 @@ def update_application(
         # Respect an applied_on the user set (or cleared) in this same request.
         _record_stage(db, app, auth.user_id, old_stage, fill_applied_on="applied_on" not in changes)
     db.commit()
-    return _detail(db, auth.user_id, app_id)
+    return detail(db, auth.user_id, app_id)
 
 
 @router.delete("/{app_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -250,7 +262,7 @@ def delete_application(app_id: uuid.UUID, auth: AuthDep, db: UserDb) -> Response
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-def _detail(db: UserDb, user_id: uuid.UUID, app_id: uuid.UUID) -> ApplicationDetail:
+def detail(db: Session, user_id: uuid.UUID, app_id: uuid.UUID) -> ApplicationDetail:
     app = db.scalar(
         select(Application)
         .where(Application.id == app_id, Application.user_id == user_id)

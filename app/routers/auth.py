@@ -120,6 +120,7 @@ class MeOut(BaseModel):
     handle: str
     email_verified: bool
     reminder_opt_in: bool
+    is_admin: bool
     csrf_token: str
 
 
@@ -246,6 +247,7 @@ def me(
         handle=user.handle,
         email_verified=user.email_verified_at is not None,
         reminder_opt_in=user.reminder_opt_in,
+        is_admin=user.is_admin and user.email_verified_at is not None,
         csrf_token=auth.csrf_token,
     )
 

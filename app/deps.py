@@ -15,6 +15,7 @@ from app.config import Settings
 from app.db import get_sessionmaker, set_session_user
 from app.models import User, UserSession
 from app.services.email import Mailer, resend_transport
+from app.services.lookups import Fetcher
 from app.services.ratelimit import Limit, RateLimiter
 from app.services.tokens import hash_token
 
@@ -136,3 +137,54 @@ def get_user_db(request: Request, auth: AuthDep) -> Iterator[Session]:
 
 
 UserDb = Annotated[Session, Depends(get_user_db)]
+
+
+def get_optional_user_db(
+    request: Request, auth: Annotated[Auth | None, Depends(optional_auth)]
+) -> Iterator[Session]:
+    """RLS-bound to the visitor if signed in; otherwise no identity (public rows only)."""
+    with get_sessionmaker(request)() as session:
+        set_session_user(session, auth.user_id if auth else None)
+        yield session
+
+
+OptionalUserDb = Annotated[Session, Depends(get_optional_user_db)]
+
+
+def get_fetcher(request: Request) -> Fetcher:
+    fetcher: Fetcher | None = getattr(request.app.state, "fetcher", None)
+    if fetcher is None:
+        fetcher = request.app.state.fetcher = Fetcher()
+    return fetcher
+
+
+FetcherDep = Annotated[Fetcher, Depends(get_fetcher)]
+
+
+def require_verified(auth: AuthDep, db: SystemDb) -> Auth:
+    """Signed in with a confirmed email: needed for anything others can see."""
+    confirmed = db.scalar(select(User.email_verified_at).where(User.id == auth.user_id))
+    db.rollback()
+    if confirmed is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Confirm your email address first (see Settings).",
+        )
+    return auth
+
+
+VerifiedDep = Annotated[Auth, Depends(require_verified)]
+
+
+def require_admin(auth: AuthDep, db: SystemDb) -> Auth:
+    """The policies check this again in SQL (kh_is_admin)."""
+    row = db.execute(
+        select(User.is_admin, User.email_verified_at).where(User.id == auth.user_id)
+    ).one_or_none()
+    db.rollback()
+    if row is None or not row.is_admin or row.email_verified_at is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+    return auth
+
+
+AdminDep = Annotated[Auth, Depends(require_admin)]

@@ -85,7 +85,7 @@ export function setCsrfToken(token: string) {
 
 const FIELD_LABELS: Record<string, string> = {
   email: 'Email',
-  password: 'Password',
+  password: 'Password', // pragma: allowlist secret (a field label)
   handle: 'Handle',
   role_title: 'Role title',
   company_name: 'Company',

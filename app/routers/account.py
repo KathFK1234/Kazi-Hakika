@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from app.deps import AuthDep, SettingsDep, SystemDb, UserDb, enforce
-from app.models import Application, BoardRole, Report, User, UserSession
+from app.models import Application, BoardRole, Checkin, Entry, Report, User, UserSession
 from app.services.digest import today_eat, upcoming
 from app.services.ratelimit import Limit
 from app.services.sessions import clear_session_cookie
@@ -65,6 +65,12 @@ def build_export(system_db: SystemDb, user_db: UserDb, auth: AuthDep) -> dict[st
         .where(Report.reported_by == auth.user_id)
         .order_by(Report.created_at)
     ).all()
+    checkins = user_db.scalars(
+        select(Checkin).where(Checkin.user_id == auth.user_id).order_by(Checkin.on_date)
+    ).all()
+    entries = user_db.scalars(
+        select(Entry).where(Entry.user_id == auth.user_id).order_by(Entry.happened_on)
+    ).all()
     sign_ins = system_db.execute(
         select(UserSession.created_at, UserSession.expires_at)
         .where(UserSession.user_id == auth.user_id)
@@ -79,6 +85,9 @@ def build_export(system_db: SystemDb, user_db: UserDb, auth: AuthDep) -> dict[st
             "created_at": user.created_at.isoformat(),
             "email_verified_at": _iso(user.email_verified_at),
             "reminder_opt_in": user.reminder_opt_in,
+            "checkin_interval_weeks": user.checkin_interval_weeks,
+            "next_checkin_on": _iso(user.next_checkin_on),
+            "weekly_target": user.weekly_target,
         },
         # When each current sign-in started and ends (no tokens).
         "sign_ins": [
@@ -97,6 +106,7 @@ def build_export(system_db: SystemDb, user_db: UserDb, auth: AuthDep) -> dict[st
                 "applied_on": _iso(a.applied_on),
                 "salary_note": a.salary_note,
                 "notes": a.notes,
+                "tags": list(a.tags),
                 "created_at": a.created_at.isoformat(),
                 "updated_at": a.updated_at.isoformat(),
                 "stage_history": [
@@ -120,6 +130,34 @@ def build_export(system_db: SystemDb, user_db: UserDb, auth: AuthDep) -> dict[st
                 "created_at": p.created_at.isoformat(),
             }
             for p in posts
+        ],
+        "checkins": [
+            {
+                "on_date": c.on_date.isoformat(),
+                "ideal_role": c.ideal_role,
+                "excited": c.excited,
+                "energised": c.energised,
+                "drained": c.drained,
+                "changed": c.changed,
+                "confidence": {
+                    "planning": c.confidence_planning,
+                    "control": c.confidence_control,
+                    "curiosity": c.confidence_curiosity,
+                    "action": c.confidence_action,
+                },
+                "roles_shown": c.roles_shown,
+            }
+            for c in checkins
+        ],
+        "entries": [
+            {
+                "kind": e.kind,
+                "text": e.text,
+                "happened_on": e.happened_on.isoformat(),
+                "application_id": str(e.application_id) if e.application_id else None,
+                "done_at": _iso(e.done_at),
+            }
+            for e in entries
         ],
         "reports": [
             {

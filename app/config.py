@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # Held back for the daily digest: other emails stop at limit - reserve.
     email_digest_reserve: int = Field(default=30, ge=0, le=100)
 
+    # Dira check-ins stay off until /support lists real contacts (see SPEC 3b.8).
+    dira_enabled: bool = False
+
     # Size caps.
     max_body_bytes: int = 64 * 1024
 

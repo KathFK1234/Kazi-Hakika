@@ -85,7 +85,11 @@ def test_docs_hidden_in_production() -> None:
 
 def test_meta_uses_settings() -> None:
     client = make_client(app_name="Test Kazi", app_tagline="a tagline")
-    assert client.get("/api/meta").json() == {"name": "Test Kazi", "tagline": "a tagline"}
+    assert client.get("/api/meta").json() == {
+        "name": "Test Kazi",
+        "tagline": "a tagline",
+        "features": {"dira": False},
+    }
 
 
 def test_spa_path_traversal_blocked() -> None:

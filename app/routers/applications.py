@@ -1,6 +1,7 @@
 """The private tracker. Every query filters by the signed-in user, and the
 session is RLS-bound to that user as well, so a missed filter still leaks nothing."""
 
+import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, Literal
@@ -12,7 +13,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import AuthDep, UserDb
-from app.models import NOTES_MAX, Application, StageEvent
+from app.models import NOTES_MAX, TAG_PATTERN, TAGS_MAX, Application, StageEvent
 from app.services.digest import today_eat
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
@@ -22,6 +23,7 @@ MAX_APPLICATIONS_PER_USER = 2000
 Stage = Literal["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]
 
 MIN_DATE, MAX_DATE = date(2000, 1, 1), date(2100, 12, 31)
+TAG_RE = re.compile(TAG_PATTERN)
 
 
 def _clean_url(value: str | None) -> str | None:
@@ -46,6 +48,26 @@ def _strip(value: str | None) -> str | None:
     return value.strip() if isinstance(value, str) else value
 
 
+def _clean_tags(value: list[str] | None) -> list[str] | None:
+    """Lowercase, spaces to hyphens, no repeats; the database checks the rest too."""
+    if value is None:
+        return None
+    tags: list[str] = []
+    for raw in value:
+        tag = "-".join(raw.strip().lower().split())
+        if not tag:
+            continue
+        if not TAG_RE.fullmatch(tag):
+            raise ValueError(
+                "Tags use letters, numbers and hyphens, up to 30 characters, like ai-infra."
+            )
+        if tag not in tags:
+            tags.append(tag)
+    if len(tags) > TAGS_MAX:
+        raise ValueError(f"Use at most {TAGS_MAX} tags.")
+    return tags
+
+
 class ApplicationIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -57,12 +79,14 @@ class ApplicationIn(BaseModel):
     applied_on: date | None = None
     salary_note: str | None = Field(default=None, max_length=200)
     notes: str = Field(default="", max_length=NOTES_MAX)
+    tags: list[str] = Field(default_factory=list, max_length=20)
 
     _strip_text = field_validator("role_title", "company_name", "salary_note", mode="before")(
         _strip
     )
     _url = field_validator("job_url")(_clean_url)
     _dates = field_validator("deadline", "applied_on")(_check_date)
+    _tags = field_validator("tags")(_clean_tags)
 
     @field_validator("role_title", "company_name")
     @classmethod
@@ -85,12 +109,14 @@ class ApplicationPatch(BaseModel):
     applied_on: date | None = None
     salary_note: str | None = Field(default=None, max_length=200)
     notes: str | None = Field(default=None, max_length=NOTES_MAX)
+    tags: list[str] | None = Field(default=None, max_length=20)
 
     _strip_text = field_validator("role_title", "company_name", "salary_note", mode="before")(
         _strip
     )
     _url = field_validator("job_url")(_clean_url)
     _dates = field_validator("deadline", "applied_on")(_check_date)
+    _tags = field_validator("tags")(_clean_tags)
 
 
 class StageEventOut(BaseModel):
@@ -115,6 +141,7 @@ class ApplicationOut(BaseModel):
     applied_on: date | None
     salary_note: str | None
     notes: str
+    tags: list[str]
     created_at: datetime
     updated_at: datetime
 
@@ -240,7 +267,7 @@ def update_application(
 ) -> ApplicationDetail:
     app = _owned(db, auth.user_id, app_id)
     changes = body.model_dump(exclude_unset=True)
-    for required in ("role_title", "company_name", "stage", "notes"):
+    for required in ("role_title", "company_name", "stage", "notes", "tags"):
         if required in changes and changes[required] is None:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"{required} can't be empty."

@@ -4,13 +4,16 @@
 
 A free job-application tracker with a community board of verified roles, built first for tech job seekers in Kenya. *Kazi hakika* means "verified work" in Kiswahili. The platform never promises anyone a job: it helps you keep track of your applications and spot fake ads.
 
-> Status: early development (Phase 1, the private tracker).
+> Status: early development. Live: the private tracker, the shared board and the "Is this job real?" checker. Built but switched off: Dira career check-ins (`DIRA_ENABLED`). Next: the connector for your own AI.
 
 ## What it does
 
 - A private tracker for roles, stages, deadlines and notes, with a daily reminder digest.
+- A public "Is this job real?" checker (`/check`): paste a link and/or the ad's text and get the same rule-based checks for everyone, with no account. Nothing pasted is stored.
+- A shared board (`/board`) of roles people found, each run through those checks, reportable, and saved to your tracker in one tap. Moderators (`/admin`) review new posters and reported roles and load the NEA licensed-agency list.
+- Dira (`/dira`, off until `DIRA_ENABLED` is set): opt-in career check-ins every 4, 6 or 8 weeks, a timeline of how your direction changes, patterns from your own tracker, and wins, learnings and goals.
 - Export everything as JSON, and delete your account for good.
-- Coming later: a shared board of checked roles, a public "Is this job real?" checker, and a connector so your own AI assistant can help with your applications.
+- Coming later: a connector so your own AI assistant can help with your applications.
 
 ## Principles
 
@@ -57,7 +60,7 @@ Open http://localhost:8000. For frontend work, run `npm run dev` in `web/` (it p
 
 Each user's rows are protected twice: every query filters by the signed-in user, and Postgres row-level security (`FORCE`d, so it applies to the table owner too) only shows rows whose `user_id` matches `app.user_id`. That setting is made transaction-local at the start of every transaction, so a pooled connection never carries one user's identity into another request. The app connects as `kazi_app`, which is not a superuser, cannot bypass RLS and owns no tables. For that role, stage history is append-only: it can add events but not change or delete them (deleting an application or account still removes them by cascade).
 
-RLS covers the tracker tables (`applications`, `stage_events`). The account tables (`users`, `sessions`, `auth_tokens`) have to be read before anyone is signed in (to log in, or to check a session or reset link), so they're guarded by the code alone: only the auth and account endpoints touch them, always by the signed-in user's ID or by a hashed token.
+RLS covers the tracker tables (`applications`, `stage_events`) and Dira's (`checkins`, `entries`), all `FORCE`d. The board has its own policies: anyone reads approved posts that are verified or unverified, posters see their own whatever their status, only admins and the daily job change a post's status, and posters delete only their own. Reports are seen only by the reporter and admins; a trigger keeps each post's report count and hides it at three reports. Admin rights come only from the `ADMIN_EMAILS` variable, applied by the owner on start: `kazi_app` has no privilege on `users.is_admin`, and the policies also require a confirmed email. The daily job declares itself per transaction (`app.job`), like `app.user_id`. The account tables (`users`, `sessions`, `auth_tokens`) have to be read before anyone is signed in (to log in, or to check a session or reset link), so they're guarded by the code alone: only the auth and account endpoints touch them, always by the signed-in user's ID or by a hashed token.
 
 Logs never hold request bodies, email addresses or database values: database errors are logged by SQLSTATE and constraint name only. The plain-language notice for users is at `/privacy`.
 
@@ -74,7 +77,13 @@ Logs never hold request bodies, email addresses or database values: database err
 
 `python -m app.jobs.daily` runs once a day as a Railway cron service (`0 3 * * *`, which is 06:00 in Nairobi). It sends each opted-in user with a confirmed email one digest of deadlines in the next 3 days, oldest sign-ups first if the email budget runs short. Then it clears expired sessions and tokens, logs counts and exits. A user is marked before their email goes out, so a re-run never sends a second digest the same day. A failed send is unmarked and tried again next run. There is no scheduler or loop inside the web service.
 
+With Dira on, users whose check-in is due get a reminder: inside that day's digest if they get one (still one email a day), otherwise a link-only email from the budget left after the digest reserve, once per check-in period. The job also looks after the board: it re-checks up to 200 links a day (4 at a time, inside a 10-minute cap), archives roles past their deadline (or 60 days old without one) and deletes archived roles after 180 days.
+
 The same job deletes accounts whose email was never confirmed and which never tracked a role, 30 days after sign-up. Signed-in users can see what their next digest would hold under Settings (`/api/account/digest-preview`), and the export in Settings includes their account, applications, stage history and active sign-ins.
+
+### Job checks and outbound requests
+
+The rules live in `app/services/verify.py` as pure functions (no AI). The only code that requests user-supplied URLs is `app/services/lookups.py`: http(s) on ports 80/443, every hop resolved first and refused unless all its addresses are public, the request pinned to the checked address with the real name in Host and TLS, a 5-second deadline, at most 3 redirects, no bodies read for link checks. Domain age comes from RDAP via rdap.org (which covers `.ke` through KENIC), cached 7 days per domain. Lookups are capped at 20 an hour per person (or IP) and 600 an hour overall; past a cap the checks still run with those facts marked unknown. Nothing about URLs or ad text is logged.
 
 ## Checks
 
@@ -123,6 +132,7 @@ Variables:
 | `TRUSTED_PROXY_HOPS` | `1` (required in production) | `1` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | from Resend | same |
 | `ADMIN_EMAILS` | comma-separated, at most 5 (yours) | not set |
+| `DIRA_ENABLED` | `true` once `/support` lists real contacts | same as web |
 
 Until a domain is verified in Resend, `EMAIL_FROM` can only be Resend's test sender (`onboarding@resend.dev`), and it delivers only to the Resend account owner's own address. Fine for trying it out; real users need the domain (Phase 4).
 
@@ -150,7 +160,8 @@ The target is about $5 a month on Railway's Hobby plan, with hard caps so a bug 
 - One web service that sleeps when idle, one Postgres, one cron job that exits. No in-process schedulers or loops.
 - Request bodies capped at 64 KB; notes at 5,000 characters; lists paginated at 50; at most 2,000 applications per user.
 - Email budget: at most 90 emails a UTC day (under Resend's free 100). The count and the send share one transaction, so a failed send uses no budget and the 91st is refused and logged. Sign-up and reset emails stop at 60, keeping 30 for the morning reminders, and each address gets at most one sign-up email a day.
-- More caps arrive with each feature: rate limits, pagination, outbound timeouts.
+- Board: 5 posts a day per person, 20 reports a day, 120 board reads a minute per IP; checker: 10 checks a minute per IP; outbound lookups as above; the daily job re-checks at most 200 links.
+- Dira: at most 60 check-ins and 2,000 entries per person; reminders only from the budget outside the digest reserve.
 
 ## License
 

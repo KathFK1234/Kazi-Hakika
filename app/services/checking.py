@@ -6,6 +6,7 @@ for the whole service; past either cap the checks still run, with the
 network facts marked unknown, so nobody is refused a check.
 """
 
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ from app.services.ratelimit import Limit, RateLimiter
 from app.services.verify import (
     Ad,
     Check,
+    Link,
     Lookups,
     Verdict,
     evaluate,
@@ -34,7 +36,13 @@ OUTBOUND_ALL = Limit("outbound-all", 600, 3600)
 # Licence statuses that mean "not licensed" in an uploaded NEA list.
 UNLICENSED = frozenset({"revoked", "suspended", "expired", "deregistered", "inactive", "cancelled"})
 
-_link_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="linkcheck")
+# Lookups hold a request thread for up to ~10 s. With one worker and ~40
+# threads, a burst could stall every other request, so at most this many
+# run at once; past it, checks run without lookups (like the hourly cap).
+MAX_CONCURRENT_LOOKUPS = 8
+_lookup_slots = threading.BoundedSemaphore(MAX_CONCURRENT_LOOKUPS)
+# One link-check thread per slot, so a check never waits in a queue.
+_link_pool = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_LOOKUPS, thread_name_prefix="linkcheck")
 
 
 @dataclass(frozen=True)
@@ -57,17 +65,27 @@ def run_checks(
     facts = Lookups()
     paused = False
     if link is not None and ad.url:
-        if limiter.hit(OUTBOUND_PER_ACTOR, actor) and limiter.hit(OUTBOUND_ALL, "all"):
-            # The link check and the RDAP lookup run side by side: one 5 s wait, not two.
-            pending = _link_pool.submit(fetcher.link_opens, ad.url)
-            domain = needs_domain_lookup(link)
-            registered_on = lookups.domain_facts(db, fetcher, domain) if domain else None
-            try:
-                link_ok = pending.result(timeout=lookups.TIMEOUT_SECONDS + 1)
-            except FutureTimeout:
-                link_ok = None
-            facts = Lookups(registered_on=registered_on, link_ok=link_ok)
-        else:
+        if not _lookup_slots.acquire(blocking=False):
             paused = True
+        elif not (limiter.hit(OUTBOUND_PER_ACTOR, actor) and limiter.hit(OUTBOUND_ALL, "all")):
+            _lookup_slots.release()
+            paused = True
+        else:
+            try:
+                facts = _look_up(db, fetcher, link, ad.url)
+            finally:
+                _lookup_slots.release()
     checks = evaluate(ad, facts, today, nea_keys(db))
     return CheckRun(checks, verdict_of(c.result for c in checks), paused)
+
+
+def _look_up(db: Session, fetcher: Fetcher, link: Link, url: str) -> Lookups:
+    # The link check and the RDAP lookup run side by side: one 5 s wait, not two.
+    pending = _link_pool.submit(fetcher.link_opens, url)
+    domain = needs_domain_lookup(link)
+    registered_on = lookups.domain_facts(db, fetcher, domain) if domain else None
+    try:
+        link_ok = pending.result(timeout=lookups.TIMEOUT_SECONDS + 1)
+    except FutureTimeout:
+        link_ok = None
+    return Lookups(registered_on=registered_on, link_ok=link_ok)

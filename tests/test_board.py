@@ -408,3 +408,24 @@ def test_board_reads_are_rate_limited(settings: Settings, app_sessions: object) 
     c = TestClient(app, base_url="http://localhost:8000")
     codes = [c.get("/api/board").status_code for _ in range(121)]
     assert codes[:120] == [200] * 120 and codes[120] == 429
+
+
+def test_lookups_pause_when_every_slot_is_busy(
+    board_client: TestClient, outbox: list[EmailMessage], owner_engine: Engine
+) -> None:
+    from app.services import checking
+
+    me = _join(board_client, outbox, "regular")
+    _established(owner_engine, "regular")
+    taken = 0
+    while checking._lookup_slots.acquire(blocking=False):
+        taken += 1
+    try:
+        r = _post(me)
+    finally:
+        for _ in range(taken):
+            checking._lookup_slots.release()
+    assert taken == checking.MAX_CONCURRENT_LOOKUPS
+    assert r.status_code == 201 and r.json()["lookups_paused"] is True
+    # Slots are given back: the next post looks things up again.
+    assert _post(me, job_url="https://www.tausi.co.ke/next").json()["lookups_paused"] is False

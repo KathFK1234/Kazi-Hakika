@@ -75,6 +75,21 @@ export function LandingPage() {
             </p>
           </li>
           <li>
+            <h3>Check if a job is real</h3>
+            <p>
+              Paste an ad or its link into <Link to="/check">Is this job real?</Link> and get plain warnings about fees,
+              personal email addresses, WhatsApp-only contact, new websites and unlicensed overseas recruiters. No
+              account needed, and we don't keep what you paste.
+            </p>
+          </li>
+          <li>
+            <h3>Browse roles others found</h3>
+            <p>
+              A shared <Link to="/board">board</Link> where every post goes through the same checks and can be
+              reported. Save any role to your tracker in one tap.
+            </p>
+          </li>
+          <li>
             <h3>Keep your data yours</h3>
             <p>
               Only you can see your applications. Download everything as a file whenever you like, and delete your
@@ -88,13 +103,6 @@ export function LandingPage() {
         <h2 id="next-title">Coming next</h2>
         <p className="muted">Being built now; not available yet.</p>
         <ul className="next-list">
-          <li>
-            <strong>“Is this job real?”</strong> Paste a job ad or link and get plain warnings about fees, personal email
-            addresses, WhatsApp-only contact and unlicensed overseas recruiters. No account needed.
-          </li>
-          <li>
-            <strong>A shared board of roles</strong> other job seekers found, each run through the same automatic checks.
-          </li>
           <li>
             <strong>Your own AI assistant, connected.</strong> Let Claude or ChatGPT read your tracker and help you
             prepare. It coaches; it never applies for you.

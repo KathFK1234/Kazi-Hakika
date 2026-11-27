@@ -769,3 +769,212 @@ input[type='checkbox'] {
 .closing h2 {
   margin-top: 0;
 }
+
+/* Board, checker and moderation */
+.lead-small {
+  max-width: 44rem;
+}
+
+.filters {
+  display: grid;
+  gap: 0 0.75rem;
+  align-items: end;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin: 1rem 0;
+}
+
+.filters .field,
+.filters .check {
+  margin-bottom: 0.75rem;
+}
+
+.filters button {
+  justify-self: start;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 52rem) {
+  .filters {
+    grid-template-columns: 2fr 1.5fr 1.5fr auto auto auto;
+  }
+}
+
+.count-line {
+  color: var(--muted);
+}
+
+.role-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.role-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.8rem 1rem;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.role-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.role-title {
+  font-size: 1.1rem;
+  font-weight: 650;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.role-card p {
+  margin: 0;
+}
+
+.role-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.role-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.check-details summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  width: fit-content;
+}
+
+.checks {
+  list-style: none;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.check-item {
+  display: grid;
+  gap: 0.1rem 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border-left: 4px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 40rem) {
+  .check-item {
+    grid-template-columns: 9rem 1fr;
+  }
+}
+
+.check-result {
+  font-weight: 650;
+  font-size: 0.9rem;
+}
+
+.check-pass {
+  border-left-color: var(--ok);
+}
+.check-pass .check-result {
+  color: var(--ok);
+}
+.check-warn {
+  border-left-color: var(--warn);
+}
+.check-warn .check-result {
+  color: var(--warn);
+}
+.check-flag {
+  border-left-color: var(--danger);
+}
+.check-flag .check-result {
+  color: var(--danger);
+}
+.check-unknown .check-result,
+.check-skip .check-result {
+  color: var(--muted);
+}
+
+.badge.danger {
+  color: var(--danger);
+}
+
+.badge.muted {
+  color: var(--muted);
+}
+
+.badge {
+  white-space: nowrap;
+}
+
+.report-form {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.verdict {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 6px;
+  border-radius: var(--radius);
+}
+
+.verdict h2:focus {
+  outline: none;
+}
+
+.verdict-verified {
+  border-left-color: var(--ok);
+}
+
+.verdict-unverified {
+  border-left-color: var(--warn);
+}
+
+.verdict-flagged {
+  border-left-color: var(--danger);
+}
+
+.queue,
+.settings-like {
+  margin-bottom: 1.5rem;
+}
+
+.settings-like {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  max-width: 44rem;
+}
+
+.reports {
+  margin: 0.25rem 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}

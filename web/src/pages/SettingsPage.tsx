@@ -15,6 +15,7 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [confirm, setConfirm] = useState('')
+  const [removePosts, setRemovePosts] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -47,7 +48,7 @@ export function SettingsPage() {
     setDeleting(true)
     setError(null)
     try {
-      await api.deleteAccount(confirm)
+      await api.deleteAccount(confirm, removePosts)
       await refresh()
       navigate('/goodbye')
     } catch (e) {
@@ -109,7 +110,10 @@ export function SettingsPage() {
 
       <section aria-labelledby="export-h">
         <h2 id="export-h">Your data</h2>
-        <p>Download everything we hold about you: your account details, every application and its stage history, as JSON.</p>
+        <p>
+          Download everything we hold about you: your account details, every application and its stage history, the
+          roles you shared on the board and the reports you filed, as JSON.
+        </p>
         <a className="button" href="/api/account/export" download>
           Download my data
         </a>
@@ -119,6 +123,7 @@ export function SettingsPage() {
         <h2 id="delete-h">Delete account</h2>
         <p>
           This permanently deletes your account, every application and its history. It can't be undone, so download your data first.
+          Roles you shared on the board stay up, shown as posted by deleted-user, unless you tick the box below.
         </p>
         <form onSubmit={deleteAccount}>
           <Field
@@ -127,6 +132,10 @@ export function SettingsPage() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
           />
+          <label className="check">
+            <input type="checkbox" checked={removePosts} onChange={(e) => setRemovePosts(e.target.checked)} />
+            Also delete the roles I shared on the board
+          </label>
           <button className="danger" disabled={deleting || confirm.trim().toLowerCase() !== me.handle}>
             {deleting ? 'Deleting…' : 'Delete my account for good'}
           </button>

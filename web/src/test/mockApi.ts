@@ -36,6 +36,7 @@ export const ME = {
   handle: 'wanjiru',
   email_verified: true,
   reminder_opt_in: true,
+  is_admin: false,
   csrf_token: 'csrf-123',
 }
 
@@ -48,6 +49,7 @@ export function app(overrides: Record<string, unknown> = {}) {
     company_name: 'Acme',
     job_url: null,
     source: 'own',
+    board_role_id: null,
     stage: 'saved',
     deadline: null,
     applied_on: null,

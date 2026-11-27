@@ -4,7 +4,11 @@ import { api, type Meta } from './api'
 import { AuthProvider } from './auth'
 import { ThemeSwitch } from './components/ThemeSwitch'
 import { useAuth } from './auth-context'
+import { AdminPage } from './pages/AdminPage'
 import { ApplicationPage } from './pages/ApplicationPage'
+import { BoardPage } from './pages/BoardPage'
+import { BoardPostPage, MyPostsPage } from './pages/BoardPostPage'
+import { CheckerPage } from './pages/CheckerPage'
 import { LandingPage } from './pages/LandingPage'
 import { ForgotPasswordPage, LoginPage, ResetPasswordPage, SignupPage, VerifyEmailPage } from './pages/AuthPages'
 import { PrivacyPage } from './pages/PrivacyPage'
@@ -71,6 +75,9 @@ function Header({ meta }: { meta: Meta }) {
             <NavLink to="/" end>
               Applications
             </NavLink>
+            <NavLink to="/board">Board</NavLink>
+            <NavLink to="/check">Check a job</NavLink>
+            {me.is_admin && <NavLink to="/admin">Moderation</NavLink>}
             <NavLink to="/settings">Settings</NavLink>
             <button
               type="button"
@@ -84,7 +91,9 @@ function Header({ meta }: { meta: Meta }) {
           </nav>
         )}
         {!me && (
-          <nav aria-label="Account">
+          <nav aria-label="Main">
+            <NavLink to="/board">Board</NavLink>
+            <NavLink to="/check">Check a job</NavLink>
             <NavLink to="/login">Sign in</NavLink>
             <NavLink to="/signup">Create account</NavLink>
           </nav>
@@ -148,6 +157,11 @@ export function AppRoutes() {
           <Route path="/applications/new" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
           <Route path="/applications/:id" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+          <Route path="/board" element={<BoardPage />} />
+          <Route path="/board/new" element={<RequireAuth><BoardPostPage /></RequireAuth>} />
+          <Route path="/board/mine" element={<RequireAuth><MyPostsPage /></RequireAuth>} />
+          <Route path="/check" element={<CheckerPage />} />
+          <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
           <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
           <Route path="/signup" element={<GuestOnly><SignupPage /></GuestOnly>} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

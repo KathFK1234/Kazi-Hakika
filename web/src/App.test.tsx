@@ -239,6 +239,6 @@ describe('settings', () => {
     expect(button).toBeEnabled()
     await userEvent.click(button)
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true))
-    expect(calls.find((c) => c.method === 'DELETE')?.body).toEqual({ confirm_handle: 'Wanjiru' })
+    expect(calls.find((c) => c.method === 'DELETE')?.body).toEqual({ confirm_handle: 'Wanjiru', remove_posts: false })
   })
 })

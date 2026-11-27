@@ -27,6 +27,7 @@ export type Me = {
   handle: string
   email_verified: boolean
   reminder_opt_in: boolean
+  is_admin: boolean
   csrf_token: string
 }
 
@@ -36,6 +37,7 @@ export type Application = {
   company_name: string
   job_url: string | null
   source: string
+  board_role_id: string | null
   stage: Stage
   deadline: string | null
   applied_on: string | null
@@ -66,6 +68,53 @@ export type DigestPreview = {
   items: { role_title: string; company_name: string; stage: Stage; deadline: string }[]
 }
 
+export type CheckResult = 'pass' | 'warn' | 'flag' | 'unknown' | 'skip'
+export type Check = { id: string; label: string; result: CheckResult; detail: string }
+export type Verdict = 'verified' | 'unverified' | 'flagged'
+export type BoardStatus = Verdict | 'hidden' | 'archived'
+
+export type BoardRole = {
+  id: string
+  title: string
+  company_name: string
+  job_url: string
+  location: string | null
+  remote: boolean
+  deadline: string | null
+  status: BoardStatus
+  checks: Check[]
+  posted_by: string
+  created_at: string
+  checked_at: string
+  mine: boolean
+  pending_review: boolean
+}
+export type BoardPage = { items: BoardRole[]; total: number; next_offset: number | null }
+
+export type BoardPostInput = {
+  title: string
+  company_name: string
+  job_url: string
+  location: string | null
+  remote: boolean
+  deadline: string | null
+  ad_text: string
+  agency_name: string | null
+}
+export type PostResult = { role: BoardRole; message: string; lookups_paused: boolean }
+export type ReportReason = 'fee' | 'fake' | 'expired' | 'duplicate' | 'other'
+
+export type CheckInput = { url: string | null; text: string; company: string; agency: string | null }
+export type CheckerResult = { verdict: Verdict; summary: string; checks: Check[]; lookups_paused: boolean }
+
+export type AdminRole = BoardRole & {
+  report_count: number
+  reports: { reason: ReportReason; note: string | null; created_at: string }[]
+  approved: boolean
+}
+export type ModerationQueue = { pending: AdminRole[]; hidden: AdminRole[]; flagged: AdminRole[] }
+export type NeaStatus = { total: number; synced_at: string | null }
+
 export class ApiError extends Error {
   readonly status: number
   /** The request field the server rejected, when it named one. */
@@ -95,6 +144,16 @@ const FIELD_LABELS: Record<string, string> = {
   applied_on: 'Applied on',
   salary_note: 'Salary note',
   notes: 'Notes',
+  title: 'Role title',
+  location: 'Location',
+  ad_text: 'Ad text',
+  agency_name: 'Agency name',
+  url: 'Job link',
+  text: 'Ad text',
+  company: 'Company',
+  agency: 'Agency name',
+  reason: 'Reason',
+  note: 'Note',
 }
 
 /** A message people can read, and the field it's about. */
@@ -184,8 +243,25 @@ export const api = {
   updateSettings: (reminder_opt_in: boolean) =>
     request<{ reminder_opt_in: boolean }>('PATCH', '/api/account/settings', { reminder_opt_in }),
   digestPreview: () => getJson<DigestPreview>('/api/account/digest-preview'),
-  deleteAccount: (confirm_handle: string) =>
-    request<void>('DELETE', '/api/account', { confirm_handle }),
+  deleteAccount: (confirm_handle: string, remove_posts = false) =>
+    request<void>('DELETE', '/api/account', { confirm_handle, remove_posts }),
+
+  listBoard: (params: URLSearchParams) => getJson<BoardPage>(`/api/board?${params.toString()}`),
+  myPosts: () => getJson<BoardPage>('/api/board/mine'),
+  postRole: (input: BoardPostInput) => request<PostResult>('POST', '/api/board', input),
+  deletePost: (id: string) => request<void>('DELETE', `/api/board/${encodeURIComponent(id)}`),
+  saveRole: (id: string) =>
+    request<ApplicationDetail>('POST', `/api/board/${encodeURIComponent(id)}/save`),
+  reportRole: (id: string, reason: ReportReason, note: string | null) =>
+    request<{ detail: string }>('POST', `/api/board/${encodeURIComponent(id)}/report`, { reason, note }),
+  checkJob: (input: CheckInput) => request<CheckerResult>('POST', '/api/check', input),
+
+  moderationQueue: () => getJson<ModerationQueue>('/api/admin/queue'),
+  moderate: (id: string, action: 'approve' | 'hide' | 'restore') =>
+    request<AdminRole>('POST', `/api/admin/board/${encodeURIComponent(id)}/${action}`),
+  neaStatus: () => getJson<NeaStatus>('/api/admin/nea'),
+  uploadNea: (csv: string, replace: boolean) =>
+    request<NeaStatus>('POST', '/api/admin/nea', { csv, replace }),
 }
 
 /** Every page of a list, 50 at a time (the API's cap). */

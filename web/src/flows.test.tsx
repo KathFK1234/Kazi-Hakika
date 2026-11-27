@@ -243,11 +243,13 @@ describe('account', () => {
     for (const link of screen.getAllByRole('link', { name: 'Create a free account' })) {
       expect(link).toHaveAttribute('href', '/signup')
     }
-    const account = screen.getByRole('navigation', { name: 'Account' })
+    const account = screen.getByRole('navigation', { name: 'Main' })
     expect(within(account).getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+    expect(within(account).getByRole('link', { name: 'Check a job' })).toHaveAttribute('href', '/check')
+    expect(within(account).getByRole('link', { name: 'Board' })).toHaveAttribute('href', '/board')
+    expect(within(account).queryByRole('link', { name: 'Applications' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Coming next' })).toBeInTheDocument()
     expect(screen.getByText('Being built now; not available yet.')).toBeInTheDocument()
-    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
 
     await userEvent.click(within(account).getByRole('link', { name: 'Create account' }))
     expect(await screen.findByRole('heading', { name: 'Create your account' })).toBeInTheDocument()

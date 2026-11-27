@@ -1,6 +1,7 @@
 from app.models.base import Base
 from app.models.tables import (
     BOARD_STATUSES,
+    ENTRY_KINDS,
     NOTES_MAX,
     REPORT_REASONS,
     STAGES,
@@ -9,8 +10,10 @@ from app.models.tables import (
     Application,
     AuthToken,
     BoardRole,
+    Checkin,
     DomainCheck,
     EmailBudget,
+    Entry,
     NeaAgency,
     Report,
     StageEvent,
@@ -20,6 +23,7 @@ from app.models.tables import (
 
 __all__ = [
     "BOARD_STATUSES",
+    "ENTRY_KINDS",
     "NOTES_MAX",
     "REPORT_REASONS",
     "STAGES",
@@ -29,8 +33,10 @@ __all__ = [
     "AuthToken",
     "Base",
     "BoardRole",
+    "Checkin",
     "DomainCheck",
     "EmailBudget",
+    "Entry",
     "NeaAgency",
     "Report",
     "StageEvent",

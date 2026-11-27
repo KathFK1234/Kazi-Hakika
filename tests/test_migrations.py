@@ -55,6 +55,13 @@ def test_upgrade_downgrade_upgrade(scratch_db: str) -> None:
                 .scalars()
                 .all()
             )
-        assert forced == ["applications", "nea_agencies", "reports", "stage_events"]
+        assert forced == [
+            "applications",
+            "checkins",
+            "entries",
+            "nea_agencies",
+            "reports",
+            "stage_events",
+        ]
     finally:
         engine.dispose()

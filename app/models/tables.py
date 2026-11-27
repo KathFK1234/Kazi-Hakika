@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -17,7 +18,7 @@ from sqlalchemy import (
     text,
     true,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, Timestamps, UUIDPk
@@ -25,6 +26,8 @@ from app.models.base import Base, Timestamps, UUIDPk
 STAGES = ("saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn")
 SOURCES = ("own", "board")
 NOTES_MAX = 5000
+TAGS_MAX = 5
+TAG_PATTERN = "[a-z0-9][a-z0-9-]{0,29}"
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -36,6 +39,13 @@ class User(UUIDPk, Timestamps, Base):
     __table_args__ = (
         CheckConstraint("email = lower(email)", name="email_lowercase"),
         CheckConstraint("handle ~ '^[a-z0-9_-]{3,30}$'", name="handle_format"),
+        CheckConstraint(
+            "checkin_interval_weeks IS NULL OR checkin_interval_weeks IN (4, 6, 8)",
+            name="checkin_interval_valid",
+        ),
+        CheckConstraint(
+            "weekly_target IS NULL OR weekly_target BETWEEN 1 AND 20", name="weekly_target_range"
+        ),
     )
 
     email: Mapped[str] = mapped_column(String(254), unique=True)
@@ -49,6 +59,11 @@ class User(UUIDPk, Timestamps, Base):
     # Set only by the owner from ADMIN_EMAILS (app.admins); the app role has no
     # INSERT/UPDATE privilege on this column, so no Python default is sent.
     is_admin: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    # Dira check-ins: all off (NULL) by default.
+    checkin_interval_weeks: Mapped[int | None] = mapped_column(SmallInteger)
+    next_checkin_on: Mapped[date | None] = mapped_column(Date)
+    last_checkin_email_on: Mapped[date | None] = mapped_column(Date)
+    weekly_target: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class Application(UUIDPk, Timestamps, Base):
@@ -57,6 +72,11 @@ class Application(UUIDPk, Timestamps, Base):
         CheckConstraint(_in("stage", STAGES), name="stage_valid"),
         CheckConstraint(_in("source", SOURCES), name="source_valid"),
         CheckConstraint(f"char_length(notes) <= {NOTES_MAX}", name="notes_length"),
+        CheckConstraint(
+            f"cardinality(tags) <= {TAGS_MAX} AND array_to_string(tags, ',') ~ "
+            f"'^({TAG_PATTERN}(,{TAG_PATTERN})*)?$'",
+            name="tags_valid",
+        ),
         # Lets stage_events prove an event belongs to its application's owner.
         UniqueConstraint("id", "user_id", name="uq_applications_id_user_id"),
         # user_id leads both, so they also serve plain user_id lookups.
@@ -77,6 +97,9 @@ class Application(UUIDPk, Timestamps, Base):
     applied_on: Mapped[date | None] = mapped_column(Date)
     salary_note: Mapped[str | None] = mapped_column(String(200))
     notes: Mapped[str] = mapped_column(Text, server_default="", default="")
+    tags: Mapped[list[str]] = mapped_column(
+        ARRAY(String(30)), server_default=text("'{}'::varchar[]"), default=list
+    )
 
     events: Mapped[list[StageEvent]] = relationship(
         back_populates="application",
@@ -244,3 +267,71 @@ class NeaAgency(UUIDPk, Timestamps, Base):
     name_key: Mapped[str] = mapped_column(String(200), unique=True)
     licence_status: Mapped[str] = mapped_column(String(40))
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+ENTRY_KINDS = ("win", "learning", "goal")
+
+
+class Checkin(UUIDPk, Timestamps, Base):
+    """A Dira check-in: the most private data in the app (forced RLS, never logged)."""
+
+    __tablename__ = "checkins"
+    __table_args__ = (
+        CheckConstraint("char_length(ideal_role) BETWEEN 1 AND 300", name="ideal_role_length"),
+        CheckConstraint(
+            "char_length(excited) <= 2000 AND char_length(changed) <= 2000 "
+            "AND char_length(energised) <= 1000 AND char_length(drained) <= 1000",
+            name="text_lengths",
+        ),
+        CheckConstraint(
+            "coalesce(confidence_planning, 1) BETWEEN 1 AND 5 "
+            "AND coalesce(confidence_control, 1) BETWEEN 1 AND 5 "
+            "AND coalesce(confidence_curiosity, 1) BETWEEN 1 AND 5 "
+            "AND coalesce(confidence_action, 1) BETWEEN 1 AND 5",
+            name="confidence_range",
+        ),
+        CheckConstraint("jsonb_typeof(roles_shown) = 'array'", name="roles_shown_is_array"),
+        UniqueConstraint("user_id", "on_date", name="uq_checkins_user_id_on_date"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    on_date: Mapped[date] = mapped_column(Date)
+    ideal_role: Mapped[str] = mapped_column(String(300))
+    excited: Mapped[str | None] = mapped_column(Text)
+    energised: Mapped[str | None] = mapped_column(Text)
+    drained: Mapped[str | None] = mapped_column(Text)
+    changed: Mapped[str | None] = mapped_column(Text)
+    confidence_planning: Mapped[int | None] = mapped_column(SmallInteger)
+    confidence_control: Mapped[int | None] = mapped_column(SmallInteger)
+    confidence_curiosity: Mapped[int | None] = mapped_column(SmallInteger)
+    confidence_action: Mapped[int | None] = mapped_column(SmallInteger)
+    # Application ids listed as reminders on the check-in page.
+    roles_shown: Mapped[list[str]] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb"), default=list
+    )
+
+
+class Entry(UUIDPk, Timestamps, Base):
+    """A win, learning or goal, optionally about one of the user's applications."""
+
+    __tablename__ = "entries"
+    __table_args__ = (
+        CheckConstraint(_in("kind", ENTRY_KINDS), name="kind_valid"),
+        CheckConstraint("char_length(text) >= 1", name="text_not_empty"),
+        CheckConstraint("done_at IS NULL OR kind = 'goal'", name="done_only_for_goals"),
+        # Clears only application_id when the application goes (Postgres 15+).
+        ForeignKeyConstraint(
+            ["application_id", "user_id"],
+            ["applications.id", "applications.user_id"],
+            ondelete="SET NULL (application_id)",
+            name="fk_entries_application_owner",
+        ),
+        Index("ix_entries_user_id_happened_on", "user_id", "happened_on"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(10))
+    text: Mapped[str] = mapped_column(String(1000))
+    happened_on: Mapped[date] = mapped_column(Date)
+    application_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
+    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

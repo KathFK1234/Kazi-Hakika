@@ -24,6 +24,8 @@ from app.services.email import EmailMessage, Mailer
 
 APP_ROLE_PASSWORD = "kazi_app_test_only"
 TABLES = (
+    "entries",
+    "checkins",
     "reports",
     "stage_events",
     "applications",

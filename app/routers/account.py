@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from app.deps import AuthDep, SettingsDep, SystemDb, UserDb, enforce
-from app.models import Application, User, UserSession
+from app.models import Application, BoardRole, Report, User, UserSession
 from app.services.digest import today_eat, upcoming
 from app.services.ratelimit import Limit
 from app.services.sessions import clear_session_cookie
@@ -33,6 +33,8 @@ class DeleteIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     confirm_handle: str = Field(max_length=30)
+    # Board posts otherwise stay up, shown as posted by "deleted-user".
+    remove_posts: bool = False
 
 
 @router.patch("/settings")
@@ -54,6 +56,14 @@ def build_export(system_db: SystemDb, user_db: UserDb, auth: AuthDep) -> dict[st
         .where(Application.user_id == auth.user_id)
         .options(selectinload(Application.events))
         .order_by(Application.created_at)
+    ).all()
+    posts = user_db.scalars(
+        select(BoardRole).where(BoardRole.posted_by == auth.user_id).order_by(BoardRole.created_at)
+    ).all()
+    reports = user_db.execute(
+        select(Report.board_role_id, Report.reason, Report.note, Report.created_at)
+        .where(Report.reported_by == auth.user_id)
+        .order_by(Report.created_at)
     ).all()
     sign_ins = system_db.execute(
         select(UserSession.created_at, UserSession.expires_at)
@@ -96,6 +106,30 @@ def build_export(system_db: SystemDb, user_db: UserDb, auth: AuthDep) -> dict[st
             }
             for a in apps
         ],
+        "board_posts": [
+            {
+                "id": str(p.id),
+                "title": p.title,
+                "company_name": p.company_name,
+                "job_url": p.job_url,
+                "location": p.location,
+                "remote": p.remote,
+                "deadline": _iso(p.deadline),
+                "status": p.status,
+                "checks": p.checks,
+                "created_at": p.created_at.isoformat(),
+            }
+            for p in posts
+        ],
+        "reports": [
+            {
+                "board_role_id": str(r.board_role_id),
+                "reason": r.reason,
+                "note": r.note,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in reports
+        ],
     }
 
 
@@ -125,6 +159,7 @@ def delete_account(
     response: Response,
     auth: AuthDep,
     db: SystemDb,
+    user_db: UserDb,
     settings: SettingsDep,
 ) -> Response:
     enforce(request, DELETE_PER_USER, str(auth.user_id))
@@ -135,7 +170,11 @@ def delete_account(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, detail="Type your handle exactly to confirm."
         )
-    # Foreign keys cascade to applications, stage events, sessions and tokens.
+    if body.remove_posts:
+        user_db.execute(delete(BoardRole).where(BoardRole.posted_by == auth.user_id))
+        user_db.commit()
+    # Foreign keys cascade to applications, stage events, reports, sessions
+    # and tokens; board posts left up lose their poster (SET NULL).
     db.execute(delete(User).where(User.id == auth.user_id))
     db.commit()
     log.info("account deleted")

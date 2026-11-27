@@ -107,3 +107,61 @@ def test_delete_needs_csrf(client: TestClient, outbox: list[EmailMessage]) -> No
     me = signed_in(client, outbox, "mercy")
     del me.headers["X-CSRF-Token"]
     assert me.request("DELETE", "/api/account", json={"confirm_handle": "mercy"}).status_code == 403
+
+
+def _post_and_report(
+    me: TestClient, owner_engine: Engine, url: str = "https://tausi.co.ke/sre"
+) -> tuple[str, str]:
+    """me posts a role and reports someone else's; returns (my post, reported role)."""
+    from tests.factories import make_board_role, make_user
+    from tests.test_board import fake_fetcher
+
+    me.app.state.fetcher = fake_fetcher()  # type: ignore[attr-defined]
+    r = me.post(
+        "/api/board",
+        json={"title": "SRE", "company_name": "Tausi", "job_url": url},
+    )
+    assert r.status_code == 201, r.text
+    other = make_board_role(owner_engine, make_user(owner_engine))
+    assert me.post(f"/api/board/{other}/report", json={"reason": "fee"}).status_code == 201
+    return r.json()["role"]["id"], str(other)
+
+
+def test_export_includes_board_posts_and_reports(
+    client: TestClient, outbox: list[EmailMessage], owner_engine: Engine
+) -> None:
+    me = signed_in(client, outbox, "poster")
+    post, reported = _post_and_report(me, owner_engine)
+    data = me.get("/api/account/export").json()
+    assert [p["id"] for p in data["board_posts"]] == [post]
+    assert data["board_posts"][0]["checks"]
+    assert [(r["board_role_id"], r["reason"]) for r in data["reports"]] == [(reported, "fee")]
+
+
+def test_deleted_users_posts_stay_up_as_deleted_user_unless_removed(
+    client: TestClient, outbox: list[EmailMessage], owner_engine: Engine
+) -> None:
+    me = signed_in(client, outbox, "keeper")
+    post, reported = _post_and_report(me, owner_engine)
+    assert (
+        me.request("DELETE", "/api/account", json={"confirm_handle": "keeper"}).status_code == 204
+    )
+    with owner_engine.connect() as c:
+        posted_by = c.execute(
+            text("SELECT posted_by FROM board_roles WHERE id = :p"), {"p": post}
+        ).scalar_one()
+        reports = c.execute(
+            text("SELECT report_count FROM board_roles WHERE id = :r"), {"r": reported}
+        )
+        assert reports.scalar_one() == 0  # the report went with the account
+    assert posted_by is None
+
+    you = signed_in(client, outbox, "leaver")
+    post, _ = _post_and_report(you, owner_engine, "https://tausi.co.ke/other")
+    r = you.request(
+        "DELETE", "/api/account", json={"confirm_handle": "leaver", "remove_posts": True}
+    )
+    assert r.status_code == 204
+    with owner_engine.connect() as c:
+        left = c.execute(text("SELECT count(*) FROM board_roles WHERE id = :p"), {"p": post})
+        assert left.scalar_one() == 0

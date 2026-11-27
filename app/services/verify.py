@@ -427,15 +427,17 @@ def _overseas(ad: Ad, nea_keys: frozenset[str] | None) -> Check:
         return _check("overseas_recruiter", "flag", unnamed)
     if not nea_keys:
         not_loaded = (
-            f"We haven't loaded {NEA}'s licence list yet. Check {agency} at neaims.go.ke "
+            f"We haven't loaded {NEA}'s licence list yet. Check the agency at neaims.go.ke "
             "before you pay or travel."
         )
         return _check("overseas_recruiter", "unknown", not_loaded)
     if name_key(agency) in nea_keys:
-        return _check("overseas_recruiter", "pass", f"{agency} is on {NEA}'s licensed list.")
+        return _check("overseas_recruiter", "pass", f"The agency is on {NEA}'s licensed list.")
+    # Never repeat the agency's name: details are stored with board posts,
+    # and the agency name is promised not to be.
     unlicensed = (
-        f"{agency} isn't on {NEA}'s list of licensed agencies. Unlicensed agencies recruiting "
-        "for jobs abroad are a common scam."
+        f"The agency isn't on {NEA}'s list of licensed agencies. Unlicensed agencies "
+        "recruiting for jobs abroad are a common scam."
     )
     return _check("overseas_recruiter", "flag", unlicensed)
 

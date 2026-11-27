@@ -196,7 +196,14 @@ def test_ad_text_is_never_stored_or_logged(
     me = _join(board_client, outbox, "regular")
     _established(owner_engine, "regular")
     with caplog.at_level(logging.DEBUG):
+        overseas = f"Housemaids wanted in Dubai, visa and air ticket provided. {SENTINEL}"
         assert _post(me, ad_text=SCAM_TEXT, agency_name="Sentinel Agency").status_code == 201
+        r = _post(me, job_url="https://x.co.ke/2", ad_text=overseas, agency_name="Sentinel Agency")
+        assert r.status_code == 201
+        overseas_check = next(
+            c for c in r.json()["role"]["checks"] if c["id"] == "overseas_recruiter"
+        )
+        assert overseas_check["result"] in ("flag", "unknown")
     with owner_engine.connect() as c:
         dump = c.execute(text("SELECT string_agg(b::text, ' ') FROM board_roles b")).scalar_one()
     assert SENTINEL not in dump and "Sentinel Agency" not in dump

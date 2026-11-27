@@ -1,15 +1,17 @@
 import { useTitle } from '../useTitle'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
-import { api, type DigestPreview } from '../api'
+import { api, type CheckinInterval, type DigestPreview, type DiraSettings } from '../api'
 import { useAuth } from '../auth-context'
 import { Field, FormError } from '../components/Field'
 import { errorMessage } from '../errors'
-import { dueLabel } from '../dates'
+import { dueLabel, formatDate } from '../dates'
+import { useFeatures } from '../features'
 
 export function SettingsPage() {
   useTitle('Settings')
   const { me, refresh } = useAuth()
+  const { dira } = useFeatures()
   const navigate = useNavigate()
   const [preview, setPreview] = useState<DigestPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -108,6 +110,8 @@ export function SettingsPage() {
         )}
       </section>
 
+      {dira && <CheckinSettings />}
+
       <section aria-labelledby="export-h">
         <h2 id="export-h">Your data</h2>
         <p>
@@ -151,6 +155,81 @@ export function GoodbyePage() {
     <section className="auth-card">
       <h1>Your account is deleted</h1>
       <p>Everything we held about you is gone. Thank you for trying us, and good luck with your search.</p>
+    </section>
+  )
+}
+
+function CheckinSettings() {
+  const [current, setCurrent] = useState<DiraSettings | null>(null)
+  const [weeks, setWeeks] = useState('')
+  const [target, setTarget] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.dira().then(
+      (d) => {
+        setCurrent(d.settings)
+        setWeeks(d.settings.checkin_interval_weeks ? String(d.settings.checkin_interval_weeks) : '')
+        setTarget(d.settings.weekly_target ? String(d.settings.weekly_target) : '')
+      },
+      (e: unknown) => setError(errorMessage(e)),
+    )
+  }, [])
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    setNotice(null)
+    try {
+      const next = await api.updateDiraSettings(
+        weeks ? (Number(weeks) as CheckinInterval) : null,
+        weeks && target ? Number(target) : null,
+      )
+      setCurrent(next)
+      setNotice(
+        next.checkin_interval_weeks
+          ? `Saved. Next check-in from ${formatDate(next.next_checkin_on ?? '')}.`
+          : 'Saved. Check-ins are off.',
+      )
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
+  return (
+    <section aria-labelledby="checkins-h">
+      <h2 id="checkins-h">Career check-ins</h2>
+      <p>
+        Every few weeks, a short check-in on where you want your career to go. Off unless you turn it on. One reminder
+        per check-in, inside the morning email when you get one that day.
+      </p>
+      <form onSubmit={save}>
+        <div className="field">
+          <label htmlFor="checkin-interval">Check-ins</label>
+          <select id="checkin-interval" value={weeks} onChange={(e) => setWeeks(e.target.value)}>
+            <option value="">Off</option>
+            <option value="4">Every 4 weeks</option>
+            <option value="6">Every 6 weeks</option>
+            <option value="8">Every 8 weeks</option>
+          </select>
+        </div>
+        {weeks && (
+          <Field
+            label="Weekly target of well-fit applications (optional)"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={20}
+            hint="Shown on your Dira page as a gentle guide. Leave empty for none."
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+          />
+        )}
+        <FormError message={error} />
+        {notice && <p role="status">{notice}</p>}
+        <button disabled={current === null}>Save check-in settings</button>
+      </form>
     </section>
   )
 }

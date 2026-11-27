@@ -1,8 +1,10 @@
 import { useTitle } from '../useTitle'
 import { Link } from 'react-router'
+import { useFeatures } from '../features'
 
 export function PrivacyPage() {
   useTitle('Your data')
+  const { dira } = useFeatures()
   return (
     <article className="prose">
       <h1>Your data, in plain words</h1>
@@ -59,6 +61,28 @@ export function PrivacyPage() {
           domain was registered. Those sites see a request from our server, never your details.
         </li>
       </ul>
+
+      {dira && (
+        <>
+          <h2>Career check-ins (Dira)</h2>
+          <ul>
+            <li>
+              Only if you use them: your check-in answers (the role you&apos;re aiming for, what excited, energised or
+              drained you, what you&apos;d keep or change, and optional confidence ratings), your wins, learnings and
+              goals, and the tags on your roles.
+            </li>
+            <li>
+              This is the most private data we hold. Only you can see it: it is never shown on the board, never counted
+              in any statistics and never written to our logs.
+            </li>
+            <li>
+              Check-in reminders are off unless you turn them on, and the email holds only a link, never anything you
+              wrote. Patterns are simple counts from your own tracker, worked out when you open the page.
+            </li>
+            <li>It is in your data download, and deleting a check-in, an entry or your account removes it for good.</li>
+          </ul>
+        </>
+      )}
 
       <h2>How long we keep it</h2>
       <ul>

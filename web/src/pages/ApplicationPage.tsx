@@ -1,9 +1,13 @@
 import { useTitle } from '../useTitle'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { api, STAGE_LABELS, STAGES, type ApplicationDetail, type ApplicationInput, type Stage } from '../api'
+import { api, STAGE_LABELS, STAGES, type ApplicationDetail, type ApplicationInput, type Entry, type Stage } from '../api'
 import { Field, FormError } from '../components/Field'
 import { JobLink } from '../components/JobLink'
+import { LearningPrompt } from '../components/LearningPrompt'
+import { formatDate } from '../dates'
+import { useFeatures } from '../features'
+import { parseTags } from '../tags'
 import { errorMessage, fieldError, formError, toProblem, type Problem } from '../errors'
 
 const EMPTY: ApplicationInput = {
@@ -15,6 +19,7 @@ const EMPTY: ApplicationInput = {
   applied_on: null,
   salary_note: null,
   notes: '',
+  tags: [],
 }
 
 const NOTES_MAX = 5000
@@ -29,13 +34,14 @@ function toInput(a: ApplicationDetail): ApplicationInput {
     applied_on: a.applied_on,
     salary_note: a.salary_note,
     notes: a.notes,
+    tags: a.tags,
   }
 }
 
 const orNull = (v: string) => (v.trim() === '' ? null : v)
 
 // Fields that show their own save errors; others go in the form-level alert.
-const FIELD_NAMES = ['role_title', 'company_name', 'job_url', 'deadline', 'applied_on', 'salary_note'] as const
+const FIELD_NAMES = ['role_title', 'company_name', 'job_url', 'deadline', 'applied_on', 'salary_note', 'tags'] as const
 
 export function ApplicationPage() {
   const { id } = useParams()
@@ -48,6 +54,10 @@ export function ApplicationPage() {
   const [problem, setProblem] = useState<Problem | null>(null)
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(isNew)
+  const [tagText, setTagText] = useState('')
+  // Set after a save that moved the role to Rejected (Dira on): offer one prompt.
+  const [rejected, setRejected] = useState<{ id: string; title: string } | null>(null)
+  const { dira } = useFeatures()
   useTitle(isNew ? 'Add a role' : 'Edit role')
   const stageId = useId()
   const notesId = useId()
@@ -59,6 +69,7 @@ export function ApplicationPage() {
       .then((a) => {
         setDetail(a)
         setForm(toInput(a))
+        setTagText(a.tags.join(', '))
       })
       .catch((e: unknown) => setError(errorMessage(e)))
       .finally(() => setLoaded(true))
@@ -74,8 +85,13 @@ export function ApplicationPage() {
     setError(null)
     setProblem(null)
     try {
-      if (isNew) await api.createApplication(form)
-      else await api.updateApplication(id, form)
+      const input = { ...form, tags: parseTags(tagText) }
+      const saved = isNew ? await api.createApplication(input) : await api.updateApplication(id, input)
+      const newlyRejected = saved.stage === 'rejected' && (isNew || detail?.stage !== 'rejected')
+      if (dira && newlyRejected) {
+        setRejected({ id: saved.id, title: saved.role_title })
+        return
+      }
       navigate('/')
     } catch (e) {
       setProblem(toProblem(e))
@@ -92,6 +108,15 @@ export function ApplicationPage() {
     } catch (e) {
       setError(errorMessage(e))
     }
+  }
+
+  if (rejected) {
+    return (
+      <section className="form-page">
+        <h1>Saved</h1>
+        <LearningPrompt applicationId={rejected.id} roleTitle={rejected.title} onDone={() => navigate('/')} />
+      </section>
+    )
   }
 
   if (!loaded) return <p aria-busy="true">Loading…</p>
@@ -148,6 +173,16 @@ export function ApplicationPage() {
           value={form.salary_note ?? ''}
           onChange={(e) => set('salary_note', orNull(e.target.value))}
         />
+        <Field
+          label="Tags (optional)"
+          name="tags"
+          error={fieldError(problem, 'tags')}
+          placeholder="e.g. backend, ai-infra"
+          hint="Up to 5, separated by commas. They group your roles in Dira patterns."
+          maxLength={200}
+          value={tagText}
+          onChange={(e) => setTagText(e.target.value)}
+        />
         <div className="field">
           <label htmlFor={notesId}>Notes</label>
           <textarea
@@ -174,6 +209,7 @@ export function ApplicationPage() {
           )}
         </div>
       </form>
+      {dira && detail && <RoleEntries applicationId={detail.id} />}
       {detail && detail.events.length > 0 && (
         <section className="history" aria-labelledby="history-heading">
           <h2 id="history-heading">Stage history</h2>
@@ -187,6 +223,61 @@ export function ApplicationPage() {
           </ol>
         </section>
       )}
+    </section>
+  )
+}
+
+function RoleEntries({ applicationId }: { applicationId: string }) {
+  const id = useId()
+  const [entries, setEntries] = useState<Entry[] | null>(null)
+  const [kind, setKind] = useState<'learning' | 'win'>('learning')
+  const [text, setText] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.entries(new URLSearchParams({ application_id: applicationId })).then(setEntries, (e: unknown) => setError(errorMessage(e)))
+  }, [applicationId])
+
+  async function add(event: FormEvent) {
+    event.preventDefault()
+    if (!text.trim()) return
+    try {
+      const entry = await api.addEntry(kind, text.trim(), applicationId)
+      setEntries((list) => [entry, ...(list ?? [])])
+      setText('')
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
+  return (
+    <section className="history" aria-labelledby={`${id}-h`}>
+      <h2 id={`${id}-h`}>Learnings and wins from this role</h2>
+      {entries && entries.length > 0 && (
+        <ul className="entries">
+          {entries.map((e) => (
+            <li key={e.id}>
+              <span className={`badge kind-${e.kind}`}>{e.kind === 'win' ? 'Win' : e.kind === 'goal' ? 'Goal' : 'Learning'}</span>{' '}
+              {e.text} <span className="hint">{formatDate(e.happened_on)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="entry-form" onSubmit={add}>
+        <div className="field">
+          <label htmlFor={`${id}-kind`}>Kind</label>
+          <select id={`${id}-kind`} value={kind} onChange={(e) => setKind(e.target.value as 'learning' | 'win')}>
+            <option value="learning">Learning</option>
+            <option value="win">Win</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor={`${id}-text`}>Note it down</label>
+          <input id={`${id}-text`} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} />
+        </div>
+        <button>Add</button>
+      </form>
+      <FormError message={error} />
     </section>
   )
 }

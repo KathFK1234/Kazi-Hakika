@@ -9,6 +9,11 @@ import { ApplicationPage } from './pages/ApplicationPage'
 import { BoardPage } from './pages/BoardPage'
 import { BoardPostPage, MyPostsPage } from './pages/BoardPostPage'
 import { CheckerPage } from './pages/CheckerPage'
+import { CheckinPage } from './pages/CheckinPage'
+import { DiraPage } from './pages/DiraPage'
+import { PatternsPage } from './pages/PatternsPage'
+import { SupportPage } from './pages/SupportPage'
+import { FeaturesContext } from './features'
 import { LandingPage } from './pages/LandingPage'
 import { ForgotPasswordPage, LoginPage, ResetPasswordPage, SignupPage, VerifyEmailPage } from './pages/AuthPages'
 import { PrivacyPage } from './pages/PrivacyPage'
@@ -58,7 +63,7 @@ function GuestOnly({ children }: { children: ReactNode }) {
   return children
 }
 
-function Header({ meta }: { meta: Meta }) {
+function Header({ meta, dira }: { meta: Meta; dira: boolean }) {
   const { me, logout } = useAuth()
   const navigate = useNavigate()
   return (
@@ -77,6 +82,7 @@ function Header({ meta }: { meta: Meta }) {
             </NavLink>
             <NavLink to="/board">Board</NavLink>
             <NavLink to="/check">Check a job</NavLink>
+            {dira && <NavLink to="/dira">Dira</NavLink>}
             {me.is_admin && <NavLink to="/admin">Moderation</NavLink>}
             <NavLink to="/settings">Settings</NavLink>
             <button
@@ -143,13 +149,15 @@ function useFocusMainOnNavigate() {
 
 export function AppRoutes() {
   const meta = useMeta()
+  const dira = meta.features?.dira ?? false
   useFocusMainOnNavigate()
   return (
+    <FeaturesContext.Provider value={{ dira }}>
     <div className="shell">
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <Header meta={meta} />
+      <Header meta={meta} dira={dira} />
       <UnverifiedBanner />
       <main id="main" tabIndex={-1}>
         <Routes>
@@ -162,6 +170,14 @@ export function AppRoutes() {
           <Route path="/board/mine" element={<RequireAuth><MyPostsPage /></RequireAuth>} />
           <Route path="/check" element={<CheckerPage />} />
           <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
+          {dira && (
+            <>
+              <Route path="/dira" element={<RequireAuth><DiraPage /></RequireAuth>} />
+              <Route path="/dira/checkin" element={<RequireAuth><CheckinPage /></RequireAuth>} />
+              <Route path="/dira/patterns" element={<RequireAuth><PatternsPage /></RequireAuth>} />
+              <Route path="/support" element={<SupportPage />} />
+            </>
+          )}
           <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
           <Route path="/signup" element={<GuestOnly><SignupPage /></GuestOnly>} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -176,9 +192,16 @@ export function AppRoutes() {
         <p>
           {meta.name}: {meta.tagline} We never apply for you and never promise a job.{' '}
           <Link to="/privacy">Your data</Link>
+          {dira && (
+            <>
+              {' · '}
+              <Link to="/support">Support</Link>
+            </>
+          )}
         </p>
       </footer>
     </div>
+    </FeaturesContext.Provider>
   )
 }
 

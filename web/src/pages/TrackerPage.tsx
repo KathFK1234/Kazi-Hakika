@@ -1,4 +1,6 @@
 import { useTitle } from '../useTitle'
+import { LearningPrompt } from '../components/LearningPrompt'
+import { useFeatures } from '../features'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router'
 import { api, listAll, STAGE_LABELS, STAGES, type Application, type Stage } from '../api'
@@ -48,6 +50,9 @@ export function TrackerPage() {
   }, [])
 
   const [announcement, setAnnouncement] = useState('')
+  const { dira } = useFeatures()
+  // A role just moved to Rejected (Dira on): offer one optional learning prompt.
+  const [rejected, setRejected] = useState<{ id: string; title: string } | null>(null)
   // The card's menu to refocus once it re-renders in its new column.
   const refocus = useRef<string | null>(null)
 
@@ -73,7 +78,12 @@ export function TrackerPage() {
     try {
       const updated = await api.updateApplication(id, { stage })
       setApps((list) => list?.map((a) => (a.id === id ? updated : a)) ?? null)
-      setAnnouncement(`Moved ${updated.role_title || title} to ${STAGE_LABELS[stage]}.`)
+      const offerPrompt = dira && stage === 'rejected' && from !== 'rejected'
+      setAnnouncement(
+        `Moved ${updated.role_title || title} to ${STAGE_LABELS[stage]}.` +
+          (offerPrompt ? ' An optional question about it is above the board.' : ''),
+      )
+      if (offerPrompt) setRejected({ id, title: updated.role_title || title })
     } catch (e) {
       // Put back only this card; other moves made meanwhile stay.
       if (byKeyboard) refocus.current = id
@@ -81,7 +91,7 @@ export function TrackerPage() {
       setError(errorMessage(e))
       setAnnouncement(`Couldn't move ${title}. It's back in ${STAGE_LABELS[from]}.`)
     }
-  }, [])
+  }, [dira])
 
   function choose(next: View) {
     setView(next)
@@ -114,6 +124,18 @@ export function TrackerPage() {
       <p className="visually-hidden" role="status" aria-live="polite">
         {announcement}
       </p>
+      {dira && rejected && (
+        <LearningPrompt
+          key={rejected.id}
+          applicationId={rejected.id}
+          roleTitle={rejected.title}
+          autoFocus={false}
+          onDone={(saved) => {
+            setRejected(null)
+            if (saved) setAnnouncement('Learning saved.')
+          }}
+        />
+      )}
       <DuePanel apps={apps} />
       {apps.length === 0 ? (
         <div className="empty">

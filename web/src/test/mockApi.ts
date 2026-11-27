@@ -55,6 +55,7 @@ export function app(overrides: Record<string, unknown> = {}) {
     applied_on: null,
     salary_note: null,
     notes: '',
+    tags: [],
     created_at: '2026-11-01T00:00:00Z',
     updated_at: '2026-11-01T00:00:00Z',
     ...overrides,

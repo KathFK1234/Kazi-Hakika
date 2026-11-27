@@ -1,4 +1,5 @@
-export type Meta = { name: string; tagline: string }
+export type Features = { dira: boolean }
+export type Meta = { name: string; tagline: string; features?: Features }
 
 export const STAGES = [
   'saved',
@@ -43,6 +44,7 @@ export type Application = {
   applied_on: string | null
   salary_note: string | null
   notes: string
+  tags: string[]
   created_at: string
   updated_at: string
 }
@@ -60,6 +62,7 @@ export type ApplicationInput = {
   applied_on: string | null
   salary_note: string | null
   notes: string
+  tags: string[]
 }
 
 export type DigestPreview = {
@@ -115,6 +118,53 @@ export type AdminRole = BoardRole & {
 export type ModerationQueue = { pending: AdminRole[]; hidden: AdminRole[]; flagged: AdminRole[] }
 export type NeaStatus = { total: number; synced_at: string | null }
 
+export type CheckinInterval = 4 | 6 | 8
+export type DiraSettings = {
+  checkin_interval_weeks: CheckinInterval | null
+  next_checkin_on: string | null
+  weekly_target: number | null
+}
+export const CONFIDENCE = ['planning', 'control', 'curiosity', 'action'] as const
+export type ConfidenceKey = (typeof CONFIDENCE)[number]
+export type CheckinInput = {
+  ideal_role: string
+  excited: string | null
+  energised: string | null
+  drained: string | null
+  changed: string | null
+} & Partial<Record<`confidence_${ConfidenceKey}`, number | null>>
+export type Checkin = Required<CheckinInput> & { id: string; on_date: string }
+export type DiraOverview = {
+  settings: DiraSettings
+  due: boolean
+  week: { target: number | null; applied_this_week: number }
+  checkins: Checkin[]
+}
+export type CheckinPrompt = {
+  last_checkin_on: string | null
+  checked_in_today: boolean
+  roles_since: { id: string; role_title: string }[]
+}
+export type EntryKind = 'win' | 'learning' | 'goal'
+export type Entry = {
+  id: string
+  kind: EntryKind
+  text: string
+  happened_on: string
+  application_id: string | null
+  done_at: string | null
+}
+export type PatternGroup = { name: string; total: number; reached_screening: number }
+export type Patterns = {
+  min_group: number
+  applications: number
+  by_tag: PatternGroup[]
+  by_source: PatternGroup[]
+  stops: { stage: Stage; count: number; ended: number } | null
+  direction: { recent: number; matching: number; tags: string[] } | null
+  ideal_role: string | null
+}
+
 export class ApiError extends Error {
   readonly status: number
   /** The request field the server rejected, when it named one. */
@@ -154,6 +204,9 @@ const FIELD_LABELS: Record<string, string> = {
   agency: 'Agency name',
   reason: 'Reason',
   note: 'Note',
+  tags: 'Tags',
+  ideal_role: 'Ideal role',
+  weekly_target: 'Weekly target',
 }
 
 /** A message people can read, and the field it's about. */
@@ -255,6 +308,20 @@ export const api = {
   reportRole: (id: string, reason: ReportReason, note: string | null) =>
     request<{ detail: string }>('POST', `/api/board/${encodeURIComponent(id)}/report`, { reason, note }),
   checkJob: (input: CheckInput) => request<CheckerResult>('POST', '/api/check', input),
+
+  dira: () => getJson<DiraOverview>('/api/dira'),
+  updateDiraSettings: (checkin_interval_weeks: CheckinInterval | null, weekly_target: number | null) =>
+    request<DiraSettings>('PATCH', '/api/dira/settings', { checkin_interval_weeks, weekly_target }),
+  checkinPrompt: () => getJson<CheckinPrompt>('/api/dira/checkin'),
+  saveCheckin: (input: CheckinInput) => request<Checkin>('POST', '/api/dira/checkins', input),
+  deleteCheckin: (id: string) => request<void>('DELETE', `/api/dira/checkins/${encodeURIComponent(id)}`),
+  patterns: () => getJson<Patterns>('/api/dira/patterns'),
+  entries: (params: URLSearchParams) => getJson<Entry[]>(`/api/dira/entries?${params.toString()}`),
+  addEntry: (kind: EntryKind, text: string, application_id: string | null = null, happened_on: string | null = null) =>
+    request<Entry>('POST', '/api/dira/entries', { kind, text, application_id, happened_on }),
+  updateEntry: (id: string, patch: { text?: string; done?: boolean }) =>
+    request<Entry>('PATCH', `/api/dira/entries/${encodeURIComponent(id)}`, patch),
+  deleteEntry: (id: string) => request<void>('DELETE', `/api/dira/entries/${encodeURIComponent(id)}`),
 
   moderationQueue: () => getJson<ModerationQueue>('/api/admin/queue'),
   moderate: (id: string, action: 'approve' | 'hide' | 'restore') =>

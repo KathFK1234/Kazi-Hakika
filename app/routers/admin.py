@@ -9,6 +9,7 @@ import csv
 import io
 import logging
 import uuid
+from collections import defaultdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
@@ -61,17 +62,30 @@ class NeaStatus(BaseModel):
     synced_at: datetime | None
 
 
-def _admin_out(db: Session, role: BoardRole, handle: str | None, admin: uuid.UUID) -> AdminRoleOut:
-    reports = db.execute(
-        select(Report.reason, Report.note, Report.created_at)
-        .where(Report.board_role_id == role.id)
-        .order_by(Report.created_at)
-    ).all()
+def _reports_for(db: Session, role_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[ReportOut]]:
+    """Every listed role's reports in one query."""
+    grouped: dict[uuid.UUID, list[ReportOut]] = defaultdict(list)
+    if role_ids:
+        rows = db.execute(
+            select(Report.board_role_id, Report.reason, Report.note, Report.created_at)
+            .where(Report.board_role_id.in_(role_ids))
+            .order_by(Report.created_at)
+        ).all()
+        for r in rows:
+            grouped[r.board_role_id].append(
+                ReportOut(reason=r.reason, note=r.note, created_at=r.created_at)
+            )
+    return grouped
+
+
+def _admin_out(
+    role: BoardRole, handle: str | None, admin: uuid.UUID, reports: list[ReportOut]
+) -> AdminRoleOut:
     base = role_out(role, handle, admin).model_dump()
     return AdminRoleOut(
         **base,
         report_count=role.report_count,
-        reports=[ReportOut(reason=r.reason, note=r.note, created_at=r.created_at) for r in reports],
+        reports=reports,
         approved=role.approved_at is not None,
     )
 
@@ -84,7 +98,8 @@ def _roles(db: Session, admin: uuid.UUID, *where: object) -> list[AdminRoleOut]:
         .order_by(BoardRole.created_at)
         .limit(QUEUE_LIMIT)
     ).all()
-    return [_admin_out(db, role, handle, admin) for role, handle in rows]
+    reports = _reports_for(db, [role.id for role, _ in rows])
+    return [_admin_out(role, handle, admin, reports[role.id]) for role, handle in rows]
 
 
 @router.get("/queue")
@@ -112,7 +127,7 @@ def _done(db: Session, role: BoardRole, admin: uuid.UUID) -> AdminRoleOut:
     db.commit()
     db.refresh(role)
     handle = db.scalar(select(User.handle).where(User.id == role.posted_by))
-    return _admin_out(db, role, handle, admin)
+    return _admin_out(role, handle, admin, _reports_for(db, [role.id])[role.id])
 
 
 @router.post("/board/{role_id}/approve")

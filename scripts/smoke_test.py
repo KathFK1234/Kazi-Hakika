@@ -51,6 +51,17 @@ def main(base_url: str) -> None:
             "bundled assets cached as immutable",
         )
 
+        r = c.get("/api/board")
+        check(r.status_code == 200 and "items" in r.json(), "public board answers")
+        r = c.post(
+            "/api/check",
+            json={"text": "Pay a registration fee of KSh 1,000 to till 123456 to book."},
+            headers={"Origin": base_url.rstrip("/")},
+        )
+        check(r.status_code == 200 and r.json().get("verdict") == "flagged", "checker flags a fee")
+        r = c.post("/api/board", json={}, headers={"Origin": base_url.rstrip("/")})
+        check(r.status_code == 401, "posting needs an account")
+
         r = c.post(
             "/api/auth/signup", json={"email": email, "password": password, "handle": handle}
         )

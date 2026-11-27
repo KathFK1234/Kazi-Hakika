@@ -19,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import Row, and_, delete, or_, select, update
+from sqlalchemy import ColumnElement, Row, and_, delete, or_, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -37,7 +37,7 @@ from app.models import (
 )
 from app.services.digest import digest_message, today_eat, upcoming
 from app.services.email import Mailer, resend_transport
-from app.services.email_templates import Brand
+from app.services.email_templates import CHECKIN_REMINDER_KIND, Brand, checkin_reminder
 from app.services.lookups import Fetcher
 from app.services.verify import verdict
 
@@ -67,6 +67,10 @@ class Counts:
     sessions_purged: int = 0
     tokens_purged: int = 0
     unconfirmed_accounts_deleted: int = 0
+    checkin_in_digest: int = 0
+    checkin_reminders: int = 0
+    checkin_failed: int = 0
+    checkin_skipped_budget: int = 0
     links_rechecked: int = 0
     roles_relabelled: int = 0
     roles_archived: int = 0
@@ -74,10 +78,48 @@ class Counts:
     domain_cache_purged: int = 0
 
 
+def _checkin_due(today: date) -> ColumnElement[bool]:
+    """Check-ins on, due by today, and not yet reminded this period."""
+    return and_(
+        User.checkin_interval_weeks.is_not(None),
+        User.next_checkin_on <= today,
+        or_(
+            User.last_checkin_email_on.is_(None),
+            User.last_checkin_email_on < User.next_checkin_on,
+        ),
+        User.email_verified_at.is_not(None),
+        User.deleted_at.is_(None),
+    )
+
+
+def checkin_due_ids(sessions: sessionmaker[Session], today: date) -> set[uuid.UUID]:
+    with sessions() as db:
+        return set(db.scalars(select(User.id).where(_checkin_due(today)).limit(MAX_USERS_SCANNED)))
+
+
+def _mark_reminded(sessions: sessionmaker[Session], user_id: uuid.UUID, today: date) -> bool:
+    """Claim this period's reminder; False if someone (a re-run) already did."""
+    with sessions() as db, db.begin():
+        return (
+            db.execute(
+                update(User)
+                .where(User.id == user_id, _checkin_due(today))
+                .values(last_checkin_email_on=today)
+                .returning(User.id)
+            ).one_or_none()
+            is not None
+        )
+
+
 def send_digests(
-    sessions: sessionmaker[Session], mailer: Mailer, brand: Brand, today: date
+    sessions: sessionmaker[Session],
+    mailer: Mailer,
+    brand: Brand,
+    today: date,
+    checkin_due: set[uuid.UUID] | None = None,
 ) -> Counts:
     counts = Counts()
+    checkin_due = checkin_due or set()
     started = time.monotonic()
     with sessions() as db:
         candidates = db.execute(
@@ -124,10 +166,17 @@ def send_digests(
         if claimed is None:
             continue
 
-        if mailer.send(digest_message(brand, user.email, user.handle, items, today)):
+        with_checkin = user.id in checkin_due and _mark_reminded(sessions, user.id, today)
+        message = digest_message(
+            brand, user.email, user.handle, items, today, checkin_due=with_checkin
+        )
+        if mailer.send(message):
             counts.sent += 1
+            counts.checkin_in_digest += int(with_checkin)
             failures = 0
             continue
+        if with_checkin:
+            _release_reminder(sessions, user.id)
 
         # Not sent: release the claim so tomorrow's run (or a re-run) can try again.
         with sessions() as db, db.begin():
@@ -138,6 +187,52 @@ def send_digests(
             log.error("stopping: %d sends failed in a row", failures)
             break
     return counts
+
+
+def _release_reminder(sessions: sessionmaker[Session], user_id: uuid.UUID) -> None:
+    # Not sent: clear the claim so tomorrow's run tries again.
+    with sessions() as db, db.begin():
+        db.execute(update(User).where(User.id == user_id).values(last_checkin_email_on=None))
+
+
+def send_checkin_reminders(
+    sessions: sessionmaker[Session],
+    mailer: Mailer,
+    brand: Brand,
+    today: date,
+    counts: Counts,
+    deadline: float,
+) -> None:
+    """Stand-alone reminders for users who got no digest today. They use only
+    the budget left outside the digest reserve; past it, they wait a day."""
+    with sessions() as db:
+        due = db.execute(
+            select(User.id, User.email, User.handle)
+            .where(_checkin_due(today))
+            .order_by(User.created_at, User.id)
+            .limit(MAX_USERS_SCANNED)
+        ).all()
+    failures = 0
+    for index, user in enumerate(due):
+        if time.monotonic() > deadline:
+            log.warning("stopping check-in reminders: runtime cap reached")
+            break
+        if mailer.remaining_today(CHECKIN_REMINDER_KIND) == 0:
+            counts.checkin_skipped_budget = len(due) - index
+            log.warning("check-in reminders: budget used up, %d wait a day", len(due) - index)
+            break
+        if not _mark_reminded(sessions, user.id, today):
+            continue
+        if mailer.send(checkin_reminder(brand, user.email, user.handle)):
+            counts.checkin_reminders += 1
+            failures = 0
+            continue
+        _release_reminder(sessions, user.id)
+        counts.checkin_failed += 1
+        failures += 1
+        if failures >= MAX_CONSECUTIVE_FAILURES:
+            log.error("stopping check-in reminders: %d sends failed in a row", failures)
+            break
 
 
 def purge_expired(sessions: sessionmaker[Session], counts: Counts) -> None:
@@ -277,8 +372,13 @@ def run(
     fetcher: Fetcher | None = None,
 ) -> Counts:
     started = time.monotonic()
+    deadline = started + MAX_RUNTIME_SECONDS
     today = today_eat()
-    counts = send_digests(sessions, mailer, Brand.from_settings(settings), today)
+    brand = Brand.from_settings(settings)
+    due = checkin_due_ids(sessions, today) if settings.dira_enabled else set()
+    counts = send_digests(sessions, mailer, brand, today, due)
+    if settings.dira_enabled:
+        send_checkin_reminders(sessions, mailer, brand, today, counts, deadline)
     purge_expired(sessions, counts)
     purge_unconfirmed_empty_accounts(sessions, counts)
     tidy_board(sessions, today, counts)

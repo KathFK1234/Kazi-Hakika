@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Application
 from app.services.email import DIGEST_KIND, EmailMessage
-from app.services.email_templates import Brand, layout, text_footer
+from app.services.email_templates import Brand, checkin_link, layout, text_footer
 
 DIGEST_DAYS = 3
 # Rejected and withdrawn roles need no reminder.
@@ -61,14 +61,24 @@ def _when(deadline: date, today: date) -> str:
 
 
 def digest_message(
-    brand: Brand, to: str, handle: str, items: list[DigestItem], today: date
+    brand: Brand,
+    to: str,
+    handle: str,
+    items: list[DigestItem],
+    today: date,
+    *,
+    checkin_due: bool = False,
 ) -> EmailMessage:
+    """With checkin_due, the Dira reminder rides along (still one email a day)."""
     count = len(items)
     subject = f"{count} deadline{'s' if count != 1 else ''} coming up: {brand.name}"
     lines = [f"- {i.role_title} at {i.company_name} ({i.stage}): due {_when(i.deadline, today)}"
              for i in items]  # fmt: skip
     app_url = f"{brand.base_url}/"
     settings_url = f"{brand.base_url}/settings"
+    checkin_text = (
+        ["Your career check-in is also due: " + checkin_link(brand), ""] if checkin_due else []
+    )
     text = "\n".join(
         [
             f"Hi {handle},",
@@ -79,10 +89,17 @@ def digest_message(
             "",
             f"Open your tracker: {app_url}",
             "",
+            *checkin_text,
             f"Turn these reminders off in Settings: {settings_url}",
             "",
             text_footer(brand),
         ]
+    )
+    checkin_href = escape(checkin_link(brand), quote=True)
+    checkin_html = (
+        f'<p>Your career check-in is also due: <a href="{checkin_href}">start it</a>.</p>'
+        if checkin_due
+        else ""
     )
     rows = "".join(
         f"<li><strong>{escape(i.role_title)}</strong> at {escape(i.company_name)} "
@@ -93,7 +110,7 @@ def digest_message(
         brand,
         f"<p>Hi {escape(handle)},</p><p>These deadlines are in the next 3 days:</p>"
         f"<ul>{rows}</ul>"
-        f'<p><a href="{escape(app_url, quote=True)}">Open your tracker</a></p>',
+        f'<p><a href="{escape(app_url, quote=True)}">Open your tracker</a></p>' + checkin_html,
         footer_html="Turn these reminders off in "
         f'<a href="{escape(settings_url, quote=True)}">Settings</a>.',
     )

@@ -116,3 +116,27 @@ def password_reset(brand: Brand, to: str, token: str) -> EmailMessage:
         ],
         ("Choose a new password", url),
     )
+
+
+CHECKIN_REMINDER_KIND = "checkin_reminder"
+
+
+def checkin_link(brand: Brand) -> str:
+    return f"{brand.base_url}/dira/checkin"
+
+
+def checkin_reminder(brand: Brand, to: str, handle: str) -> EmailMessage:
+    """A link only: reminders never carry anything the user wrote."""
+    return _message(
+        brand,
+        to,
+        CHECKIN_REMINDER_KIND,
+        f"Time for your career check-in: {brand.name}",
+        [
+            f"Hi {handle},",
+            "Your Dira check-in is ready whenever you are. It takes a few minutes: where you "
+            "want your career to go, and what to keep or change.",
+            "You can change how often these come, or turn them off, in Settings.",
+        ],
+        ("Start my check-in", checkin_link(brand)),
+    )

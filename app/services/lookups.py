@@ -90,9 +90,13 @@ def resolve_target(url: str, resolver: Resolver) -> Target:
         raise Blocked("port") from None
     if port not in (80, 443):
         raise Blocked("port")
-    host = parts.hostname.rstrip(".").lower()
     if parts.username or parts.password:
         raise Blocked("credentials")
+    try:
+        # Internationalised names travel as punycode (bücher.de -> xn--bcher-kva.de).
+        host = parts.hostname.rstrip(".").encode("idna").decode("ascii").lower()
+    except UnicodeError:
+        raise Blocked("name") from None
     try:
         literal = ipaddress.ip_address(host)
     except ValueError:
@@ -175,7 +179,8 @@ class Fetcher:
             return False
         except TimeoutError, httpx.TimeoutException:
             return None
-        except httpx.HTTPError, OSError:
+        except httpx.HTTPError, httpx.InvalidURL, OSError, ValueError:
+            # Malformed URLs and odd answers: the link doesn't open.
             return False
 
     def rdap_registered_on(self, domain: str) -> tuple[bool, date | None]:
@@ -195,7 +200,7 @@ class Fetcher:
                     body += chunk
                     if len(body) > RDAP_MAX_BYTES or monotonic() > deadline:
                         return False, None
-        except Blocked, Unreachable, TimeoutError, httpx.HTTPError, OSError:
+        except Blocked, Unreachable, TimeoutError, httpx.HTTPError, httpx.InvalidURL, OSError:
             return False, None
         try:
             data = json.loads(body)

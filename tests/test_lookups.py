@@ -237,3 +237,22 @@ def test_failed_rdap_is_not_cached(
 def test_system_resolver_reports_unknown_names() -> None:
     with pytest.raises(Unreachable):
         lookups.system_resolver("name.invalid", 443)
+
+
+def test_internationalised_names_are_sent_as_punycode() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200)
+
+    hosts = {"xn--bcher-kva.de": [PUBLIC]}
+    assert fetcher(handler, hosts).link_opens("https://bücher.de/jobs") is True
+    assert seen[0].headers["host"] == "xn--bcher-kva.de"
+    assert seen[0].extensions["sni_hostname"] == "xn--bcher-kva.de"
+
+
+@pytest.mark.parametrize("url", ["https://a" + "b" * 70 + ".com/", "https://\u0000x.com/"])
+def test_malformed_names_never_crash(url: str) -> None:
+    ok = fetcher(lambda r: httpx.Response(200), {})
+    assert ok.link_opens(url) is False

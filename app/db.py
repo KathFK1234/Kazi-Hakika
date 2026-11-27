@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
 from app.config import Settings, get_settings
 
 RLS_USER_KEY = "rls_user_id"
+RLS_JOB_KEY = "rls_job"
 
 
 def make_engine(settings: Settings) -> Engine:
@@ -49,8 +50,8 @@ def _set_rls_user(session: Session, transaction: SessionTransaction, connection:
     """
     user_id = session.info.get(RLS_USER_KEY)
     connection.execute(
-        text("SELECT set_config('app.user_id', :uid, true)"),
-        {"uid": str(user_id) if user_id else ""},
+        text("SELECT set_config('app.user_id', :uid, true), set_config('app.job', :job, true)"),
+        {"uid": str(user_id) if user_id else "", "job": session.info.get(RLS_JOB_KEY, "")},
     )
 
 
@@ -63,3 +64,12 @@ def set_session_user(session: Session, user_id: uuid.UUID | None) -> None:
     if session.in_transaction():
         raise RuntimeError("Set the RLS user before the session starts a transaction")
     session.info[RLS_USER_KEY] = user_id
+
+
+def set_session_job(session: Session) -> None:
+    """Mark a session as the daily job's board maintenance (re-checks, archive,
+    purge): the board policies let it change any post's status. Only
+    app.jobs.daily calls this; requests never do."""
+    if session.in_transaction():
+        raise RuntimeError("Set the job identity before the session starts a transaction")
+    session.info[RLS_JOB_KEY] = "daily"

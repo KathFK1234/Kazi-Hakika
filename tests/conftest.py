@@ -23,7 +23,18 @@ from app.main import create_app
 from app.services.email import EmailMessage, Mailer
 
 APP_ROLE_PASSWORD = "kazi_app_test_only"
-TABLES = ("stage_events", "applications", "sessions", "auth_tokens", "email_budget", "users")
+TABLES = (
+    "reports",
+    "stage_events",
+    "applications",
+    "board_roles",
+    "domain_checks",
+    "nea_agencies",
+    "sessions",
+    "auth_tokens",
+    "email_budget",
+    "users",
+)
 
 
 def _admin_url() -> str | None:

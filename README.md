@@ -122,10 +122,11 @@ Variables:
 | `KAZI_APP_DB_PASSWORD` | random, 64 hex characters | `${{web.KAZI_APP_DB_PASSWORD}}` |
 | `TRUSTED_PROXY_HOPS` | `1` (required in production) | `1` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | from Resend | same |
+| `ADMIN_EMAILS` | comma-separated, at most 5 (yours) | not set |
 
 Until a domain is verified in Resend, `EMAIL_FROM` can only be Resend's test sender (`onboarding@resend.dev`), and it delivers only to the Resend account owner's own address. Fine for trying it out; real users need the domain (Phase 4).
 
-`scripts/start-web.sh` runs `alembic upgrade head` as the owner, sets the `kazi_app` role's login password from `KAZI_APP_DB_PASSWORD` (`python -m app.app_role`), then unsets `MIGRATIONS_DATABASE_URL` before starting the server, so the running app never holds the owner's password. Generate `KAZI_APP_DB_PASSWORD` once (64 hex characters, so it needs no URL escaping) and build `DATABASE_URL` from it: `postgresql://kazi_app:${{KAZI_APP_DB_PASSWORD}}@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}`. To rotate it, change the variable and redeploy web (daily references web's value).
+`scripts/start-web.sh` runs `alembic upgrade head` as the owner, sets the `kazi_app` role's login password from `KAZI_APP_DB_PASSWORD` (`python -m app.app_role`), applies `ADMIN_EMAILS` to `users.is_admin` (`python -m app.admins`: listed accounts become admins once their email is confirmed, everyone else loses admin), then unsets `MIGRATIONS_DATABASE_URL` before starting the server, so the running app never holds the owner's password. Generate `KAZI_APP_DB_PASSWORD` once (64 hex characters, so it needs no URL escaping) and build `DATABASE_URL` from it: `postgresql://kazi_app:${{KAZI_APP_DB_PASSWORD}}@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}`. To rotate it, change the variable and redeploy web (daily references web's value).
 
 ### Backups and restore
 

@@ -13,8 +13,11 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
+    text,
     true,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, Timestamps, UUIDPk
@@ -43,6 +46,9 @@ class User(UUIDPk, Timestamps, Base):
     # The daily job sends at most one digest per user per day.
     last_digest_on: Mapped[date | None] = mapped_column(Date)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set only by the owner from ADMIN_EMAILS (app.admins); the app role has no
+    # INSERT/UPDATE privilege on this column, so no Python default is sent.
+    is_admin: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
 
 
 class Application(UUIDPk, Timestamps, Base):
@@ -63,8 +69,9 @@ class Application(UUIDPk, Timestamps, Base):
     company_name: Mapped[str] = mapped_column(String(200))
     job_url: Mapped[str | None] = mapped_column(String(2048))
     source: Mapped[str] = mapped_column(String(10), server_default="own", default="own")
-    # Points at board_roles once Phase 2 adds that table.
-    board_role_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
+    board_role_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("board_roles.id", ondelete="SET NULL"), index=True
+    )
     stage: Mapped[str] = mapped_column(String(20), server_default="saved", default="saved")
     deadline: Mapped[date | None] = mapped_column(Date)
     applied_on: Mapped[date | None] = mapped_column(Date)
@@ -148,3 +155,92 @@ class AuthToken(UUIDPk, Timestamps, Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+BOARD_STATUSES = ("verified", "unverified", "flagged", "hidden", "archived")
+# What the board shows to everyone (once approved).
+VISIBLE_STATUSES = ("verified", "unverified")
+REPORT_REASONS = ("fee", "fake", "expired", "duplicate", "other")
+
+
+class BoardRole(UUIDPk, Timestamps, Base):
+    """A role someone shared. RLS: public read of approved, visible posts;
+    posters see their own; only admins and the daily job change status."""
+
+    __tablename__ = "board_roles"
+    __table_args__ = (
+        CheckConstraint(_in("status", BOARD_STATUSES), name="status_valid"),
+        CheckConstraint("report_count >= 0", name="report_count_nonnegative"),
+        CheckConstraint("jsonb_typeof(checks) = 'array'", name="checks_is_array"),
+        Index("ix_board_roles_status_deadline", "status", "deadline"),
+        Index("ix_board_roles_status_checked_at", "status", "checked_at"),
+        Index("ix_board_roles_archived_at", "archived_at"),
+        Index(
+            "uq_board_roles_live_job_url",
+            "job_url",
+            unique=True,
+            postgresql_where=text("archived_at IS NULL"),
+        ),
+    )
+
+    # NULL once the poster deletes their account (shown as deleted-user).
+    posted_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(200))
+    company_name: Mapped[str] = mapped_column(String(200))
+    job_url: Mapped[str] = mapped_column(String(2048))
+    company_domain: Mapped[str] = mapped_column(String(253))
+    location: Mapped[str | None] = mapped_column(String(100))
+    remote: Mapped[bool] = mapped_column(Boolean, server_default=text("false"), default=False)
+    deadline: Mapped[date | None] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(12))
+    checks: Mapped[list[dict[str, str]]] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb"), default=list
+    )
+    report_count: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
+    # NULL while the post waits in the admin review queue.
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Report(UUIDPk, Timestamps, Base):
+    """One per user per role. A trigger keeps board_roles.report_count in step."""
+
+    __tablename__ = "reports"
+    __table_args__ = (
+        CheckConstraint(_in("reason", REPORT_REASONS), name="reason_valid"),
+        UniqueConstraint("board_role_id", "reported_by", name="uq_reports_role_reporter"),
+    )
+
+    board_role_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("board_roles.id", ondelete="CASCADE")
+    )
+    reported_by: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    reason: Mapped[str] = mapped_column(String(20))
+    note: Mapped[str | None] = mapped_column(String(300))
+
+
+class DomainCheck(Timestamps, Base):
+    """Cached lookups per registrable domain, kept 7 days."""
+
+    __tablename__ = "domain_checks"
+
+    domain: Mapped[str] = mapped_column(String(253), primary_key=True)
+    registered_on: Mapped[date | None] = mapped_column(Date)
+    resolves: Mapped[bool | None] = mapped_column(Boolean)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class NeaAgency(UUIDPk, Timestamps, Base):
+    """Licensed employment agencies (NEAIMS list, uploaded by an admin)."""
+
+    __tablename__ = "nea_agencies"
+
+    name: Mapped[str] = mapped_column(String(200))
+    name_key: Mapped[str] = mapped_column(String(200), unique=True)
+    licence_status: Mapped[str] = mapped_column(String(40))
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
